@@ -1,12 +1,12 @@
 // src/telegram/telegram.module.ts
-import { Module, Global } from '@nestjs/common';
+import { Module, Global, forwardRef } from '@nestjs/common';
 import { Bot } from 'grammy';
 import { BotService } from './bot/bot.service';
-import { UserTgModule } from 'src/users_tg/user_tg.module';
+import { UserTgModule } from '../users_tg/user_tg.module';
 
 @Global()
 @Module({
-  imports: [UserTgModule],
+  imports: [forwardRef(() => UserTgModule),],
   providers: [
     {
       provide: 'TELEGRAM_BOT',

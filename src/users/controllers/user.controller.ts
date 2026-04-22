@@ -10,7 +10,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { UserService } from '../services/user.service';
-import { ClassroomService } from 'src/classroom/service/classroom.service';
+import { ClassroomService } from '../../classroom/service/classroom.service';
 
 @Controller('users')
 export class UserController {

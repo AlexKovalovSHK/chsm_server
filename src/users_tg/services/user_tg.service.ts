@@ -47,11 +47,18 @@ export class UserTgService {
   }
 
   /**
-   * 4. Найти одного по ID
+   * 4. Найти одного по ID (MongoDB _id)
    */
   async findByInternalId(id: string) {
-  return this.userModel.findById(id).exec(); // findById ищет по полю _id
-}
+    return this.userModel.findById(id).exec();
+  }
+
+  /**
+   * 4.1 Найти одного по Telegram ID
+   */
+  async findByTgId(tgId: string) {
+    return this.userModel.findOne({ tgId }).exec();
+  }
 
   /**
    * 5. Обновить шаг регистрации

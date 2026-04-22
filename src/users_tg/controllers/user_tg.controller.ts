@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Param, Delete, Patch, Query } from "@nestjs/common";
 import { UserTgService } from "../services/user_tg.service";
-import { BotService } from "src/telegram/bot/bot.service";
+import { BotService } from "../../telegram/bot/bot.service";
 
 @Controller('admin/tg-users') // Лучше добавить префикс admin для ясности
 export class UserTgController {

@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Res, Inject, Post } from '@nestjs/common';
+import { Controller, Get, Query, Res, Inject, Post, forwardRef } from '@nestjs/common';
 import express from 'express';
 import { ClassroomService } from '../service/classroom.service';
 import { UserService } from '../../users/services/user.service'; // Путь к вашему сервису пользователей
@@ -6,7 +6,9 @@ import { UserService } from '../../users/services/user.service'; // Путь к 
 @Controller('auth')
 export class ClassroomController {
   constructor(
+    @Inject(forwardRef(() => ClassroomService))
     private readonly classroomService: ClassroomService,
+    @Inject(forwardRef(() => UserService))
     private readonly userService: UserService, // ПРАВИЛЬНЫЙ ИНЖЕКТ
   ) {}
 

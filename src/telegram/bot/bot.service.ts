@@ -1,20 +1,33 @@
-import { Injectable, Inject, OnModuleInit, Logger } from '@nestjs/common';
-import { Bot, Context } from 'grammy';
-import { UserTgService } from 'src/users_tg/services/user_tg.service';
+import {
+  Injectable,
+  Inject,
+  OnModuleInit,
+  Logger,
+  forwardRef,
+} from '@nestjs/common';
+import { Bot } from 'grammy';
+import { UserTgService } from '../../users_tg/services/user_tg.service';
 
 @Injectable()
 export class BotService implements OnModuleInit {
   private readonly logger = new Logger(BotService.name);
 
+  // 1. Флаг для предотвращения двойного запуска (защита от ошибки 409)
+  private static isBotStarted = false;
+
   constructor(
     @Inject('TELEGRAM_BOT') private readonly bot: Bot,
+    @Inject(forwardRef(() => UserTgService)) // Используйте forwardRef, если есть цикличность
     private readonly userService: UserTgService,
   ) {}
 
-  onModuleInit() {
-    this.logger.log('🤖 Инициализация бота для регистрации...');
+  async onModuleInit() {
+    // Если бот уже запущен в этом процессе — выходим
+    if (BotService.isBotStarted) {
+      return;
+    }
 
-    // 1. Сохраняем/обновляем базовые данные пользователя при каждом контакте
+    // Middleware: сохранение данных юзера
     this.bot.use(async (ctx, next) => {
       if (ctx.from) {
         await this.userService.upsertUser({
@@ -27,89 +40,94 @@ export class BotService implements OnModuleInit {
       return next();
     });
 
-    // 2. Команда /start - Начало регистрации
+    // Команда /start
     this.bot.command('start', async (ctx) => {
       const tgId = ctx.from!.id.toString();
-      const user = await this.userService.findByInternalId(tgId);
+
+      // Используем findByTgId для поиска по Telegram ID
+      const user = await this.userService.findByTgId(tgId);
 
       if (user?.isVerified) {
-        return ctx.reply(`Вы уже зарегистрированы как ${user.email}. Ожидайте новых заданий!`);
+        return ctx.reply(
+          `Вы уже зарегистрированы как ${user.email}. Ожидайте новых заданий!`,
+        );
       }
 
-      // Переводим пользователя в состояние ожидания email
       await this.userService.updateRegistrationStep(tgId, 'waiting_email');
 
       await ctx.reply(
         `Привет, ${ctx.from?.first_name}! 👋\n\n` +
-        'Я буду присылать тебе задания из учебной платформы прямо сюда.\n' +
-        'Для начала регистрации, пожалуйста, **введи свой Email:**',
-        { parse_mode: 'Markdown' }
+          'Я буду присылать тебе задания из учебной платформы прямо сюда.\n' +
+          'Для начала регистрации, пожалуйста, **введи свой Email:**',
+        { parse_mode: 'Markdown' },
       );
     });
 
-    // 3. Обработка текстовых сообщений (ввод Email)
+    // Обработка ввода Email
     this.bot.on('message:text', async (ctx) => {
       const tgId = ctx.from.id.toString();
       const text = ctx.message.text.trim();
-      
-      // Получаем текущее состояние пользователя из БД
-      const user = await this.userService.findByInternalId(tgId);
+
+      // Используем findByTgId
+      const user = await this.userService.findByTgId(tgId);
 
       if (user?.registrationStep === 'waiting_email') {
         await this.handleEmailInput(ctx, tgId, text);
       } else {
-        // Если пользователь просто что-то пишет вне процесса регистрации
-        await ctx.reply('Используйте меню или команду /start для начала работы.');
+        await ctx.reply(
+          'Используйте меню или команду /start для начала работы.',
+        );
       }
     });
 
-    this.bot.start();
-    this.logger.log('🤖 Бот запущен и готов собирать Email-ы');
+    // ЗАПУСК БОТА С ОБРАБОТКОЙ ОШИБОК
+    try {
+      // mark as started BEFORE calling start to prevent race conditions
+      BotService.isBotStarted = true;
+
+      // Не используйте await перед start(), grammy сама управляет циклом.
+      this.bot.start({
+        onStart: (info) => {
+          this.logger.log(
+            `🤖 Бот @${info.username} успешно запущен в Telegram`,
+          );
+        },
+      });
+    } catch (e) {
+      BotService.isBotStarted = false;
+      this.logger.error(`Ошибка запуска бота: ${e.message}`);
+    }
   }
 
-  /**
-   * Логика обработки и валидации Email
-   */
   private async handleEmailInput(ctx: any, tgId: string, email: string) {
-    // Простая проверка email регулярным выражением
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    
     if (!emailRegex.test(email)) {
       return ctx.reply('⚠️ Похоже, это не валидный email. Попробуйте еще раз:');
     }
 
     try {
-      // Пытаемся привязать email через наш сервис
       await this.userService.linkEmail(tgId, email);
-      
       await ctx.reply(
         '✅ Регистрация успешно завершена!\n\n' +
-        `Ваш аккаунт привязан к почте: *${email}*.\n` +
-        'Теперь я смогу присылать вам личные задания.',
-        { parse_mode: 'Markdown' }
+          `Ваш аккаунт привязан к почте: *${email}*.\n` +
+          'Теперь я смогу присылать вам личные задания.',
+        { parse_mode: 'Markdown' },
       );
-
-      this.logger.log(`Студент зарегистрирован: ${email} (tgId: ${tgId})`);
-
     } catch (error) {
-      if (error.status === 409) { // ConflictException из сервиса
-        await ctx.reply('❌ Этот email уже используется другим пользователем. Введите другой email:');
+      if (error.status === 409) {
+        await ctx.reply('❌ Этот email уже используется другим пользователем.');
       } else {
-        this.logger.error(`Ошибка при регистрации: ${error.message}`);
-        await ctx.reply('Произошла ошибка при сохранении. Пожалуйста, попробуйте позже.');
+        await ctx.reply('Произошла ошибка при сохранении.');
       }
     }
   }
 
-  /**
-   * Метод для отправки заданий (можно вызывать из контроллеров платформы)
-   */
   async sendTask(tgId: string, taskTitle: string, taskLink: string) {
     try {
       await this.bot.api.sendMessage(
-        tgId, 
+        tgId,
         `🆕 *Новое задание:*\n\n${taskTitle}\n\n[Открыть задание](${taskLink})`,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'Markdown' },
       );
     } catch (e) {
       if (e.description?.includes('blocked')) {

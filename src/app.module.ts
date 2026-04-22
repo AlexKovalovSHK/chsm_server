@@ -7,7 +7,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ClassroomModule } from './classroom/classrom.module';
 import { UsersModule } from './users/users.module';
 import { TelegramModule } from './telegram/telegram.module';
-import { SyncModule } from './sync/sync.module';
 import { UserTgModule } from './users_tg/user_tg.module';
 
 @Module({
@@ -27,7 +26,6 @@ import { UserTgModule } from './users_tg/user_tg.module';
     TelegramModule,
     ClassroomModule,
     UsersModule,
-    SyncModule,
     UserTgModule,
   ],
   controllers: [AppController],
