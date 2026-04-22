@@ -18,20 +18,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Шаг 1: Получение кода
       - uses: actions/checkout@v4
 
-      # Шаг 2: Установка Bun
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest # или укажите конкретную версию, например 1.1.0
+          bun-version: latest
 
-      # Шаг 3: Установка зависимостей (использует bun.lockb)
+      # Шаг 3: Установка зависимостей
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Шаг 4: Сборка проекта (если есть скрипт build)
+      # Шаг 4: Сборка проекта
       - name: Build project
         run: bun run build
 
@@ -41,27 +39,22 @@ jobs:
 
       - name: Build Docker image
         run: |
+          # Используем --file Dockerfile на случай, если их несколько
           docker build -t ${{ env.DOCKER_IMAGE }} .
           docker images
 
-      # Шаг 6: Сохранение Docker-образа в tar-файл
       - name: Save Docker image
         run: |
           docker save ${{ env.DOCKER_IMAGE }} -o ${{ env.DOCKER_IMAGE }}.tar
-          ls -lh
 
-      # Шаг 7: Установка sshpass
       - name: Install sshpass
         run: |
           sudo apt-get update
           sudo apt-get install -y sshpass
 
-      # Шаг 8: Подготовка папки и Копирование файлов на удаленный сервер
       - name: Copy files to remote server
         run: |
-          # Создаем директорию перед копированием
           sshpass -p "${{ secrets.SUDO_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "mkdir -p ${{ env.DEPLOY_DIR }}"
-          # Копируем образ и docker-compose
           sshpass -p "${{ secrets.SUDO_PASSWORD }}" scp -o StrictHostKeyChecking=no ${{ env.DOCKER_IMAGE }}.tar ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ env.DEPLOY_DIR }}/
           sshpass -p "${{ secrets.SUDO_PASSWORD }}" scp -o StrictHostKeyChecking=no docker-compose.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ env.DEPLOY_DIR }}/
 
@@ -78,21 +71,10 @@ jobs:
         run: |
           sshpass -p "${{ secrets.SUDO_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
             cd ${{ env.DEPLOY_DIR }} &&
-            
-            # Проверка наличия файлов
-            if [ ! -f ${{ env.DOCKER_IMAGE }}.tar ]; then echo 'Image tar not found'; exit 1; fi
-            
-            # Загрузка образа в Docker
             docker load -i ${{ env.DOCKER_IMAGE }}.tar &&
-            
-            # Создание доп. папок если нужны
             mkdir -p data && chmod 777 data &&
-            
-            # Перезапуск контейнеров
             docker-compose down || true
             docker-compose up -d &&
-            
-            # Очистка старых образов и tar-файла для экономии места
-            rm ${{ env.DOCKER_IMAGE }}.tar
+            rm ${{ env.DOCKER_IMAGE }}.tar &&
             docker image prune -f
           "
