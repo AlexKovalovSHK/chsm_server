@@ -3,7 +3,7 @@ import { Module, Global } from '@nestjs/common';
 import { Bot } from 'grammy';
 import { BotService } from './bot/bot.service';
 
-@Global() // Делаем модуль глобальным, чтобы SyncService видел его везде
+@Global()
 @Module({
   providers: [
     {

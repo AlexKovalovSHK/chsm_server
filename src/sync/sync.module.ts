@@ -5,7 +5,7 @@ import { UsersModule } from '../users/users.module';
 import { ClassroomModule } from '../classroom/classrom.module';
 
 @Module({
-  imports: [UsersModule, ClassroomModule], // Импортируем другие модули, чтобы видеть их сервисы
+  imports: [UsersModule, ClassroomModule],
   providers: [SyncService],
 })
 export class SyncModule {}
