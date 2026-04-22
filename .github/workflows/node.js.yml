@@ -58,9 +58,6 @@ jobs:
             # Загружаем образ
             docker load -i ${{ env.DOCKER_IMAGE }}.tar &&
             
-            # Создаем .env прямо на сервере (чтобы работал Телеграм)
-            echo 'TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}' > .env &&
-            
             # ПРИНУДИТЕЛЬНО удаляем старый контейнер (решает ошибку Conflict)
             docker rm -f ${{ env.CONTAINER_NAME }} || true
             
