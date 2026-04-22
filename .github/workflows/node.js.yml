@@ -33,7 +33,7 @@ jobs:
 
       # Шаг 4: Сборка проекта (если есть скрипт build)
       - name: Build project
-        run: bun run build --if-present
+        run: bun run build
 
       # Шаг 5: Сборка Docker-образа
       - name: Set up Docker Buildx
