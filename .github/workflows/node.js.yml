@@ -11,7 +11,7 @@ env:
   DEPLOY_DIR: "/root/chsm_serv/"
   CONTAINER_NAME: "chsm_serv"
   HOST_PORT: "5008"
-  CONTAINER_PORT: "5001"
+  CONTAINER_PORT: "5008"
 
 jobs:
   build:

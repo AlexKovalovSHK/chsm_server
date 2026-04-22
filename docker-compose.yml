@@ -7,7 +7,7 @@ services:
     container_name: chsm_serv
     restart: unless-stopped
     ports:
-      - "5008:5001"
+      - "5008:5008"
     env_file:
       - .env
     environment:
