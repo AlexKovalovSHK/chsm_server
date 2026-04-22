@@ -4,12 +4,11 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-
-// Ваши модули
 import { ClassroomModule } from './classroom/classrom.module';
 import { UsersModule } from './users/users.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { SyncModule } from './sync/sync.module';
+import { UserTgModule } from './users_tg/user_tg.module';
 
 @Module({
   imports: [
@@ -23,14 +22,13 @@ import { SyncModule } from './sync/sync.module';
       inject: [ConfigService],
     }),
 
-    // 2. Включение поддержки @Cron()
     ScheduleModule.forRoot(),
 
-    // 3. Ваши функциональные модули
-    TelegramModule, // Здесь создается инстанс бота
+    TelegramModule,
     ClassroomModule,
     UsersModule,
-    SyncModule, // Здесь живет SyncService, который всех объединяет
+    SyncModule,
+    UserTgModule,
   ],
   controllers: [AppController],
   providers: [AppService],

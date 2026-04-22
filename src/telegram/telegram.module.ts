@@ -2,9 +2,11 @@
 import { Module, Global } from '@nestjs/common';
 import { Bot } from 'grammy';
 import { BotService } from './bot/bot.service';
+import { UserTgModule } from 'src/users_tg/user_tg.module';
 
 @Global()
 @Module({
+  imports: [UserTgModule],
   providers: [
     {
       provide: 'TELEGRAM_BOT',
