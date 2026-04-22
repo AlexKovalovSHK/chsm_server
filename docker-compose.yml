@@ -1,11 +1,14 @@
 version: "3.9"
 
 services:
-  chsm_serv:
+  app:
     image: chsm_serv:latest
     container_name: chsm_serv
+    restart: unless-stopped
     ports:
       - "5008:5001"
     env_file:
       - .env
-    restart: always
+    environment:
+      - PORT=5009
+      - NODE_ENV=production
