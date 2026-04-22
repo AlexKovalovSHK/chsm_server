@@ -2,10 +2,8 @@ version: "3.9"
 
 services:
   app:
-    build: .
     container_name: chsm_serv
+    image: chsm_serv:latest
     ports:
       - "5008:5001"
-    env_file:
-      - .env
     restart: always
