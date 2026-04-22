@@ -1,4 +1,4 @@
-name: Node.js CI with Docker Build and Deploy
+name: Bun CI/CD with Docker Build and Deploy
 
 on:
   push:
@@ -8,108 +8,91 @@ on:
 
 env:
   DOCKER_IMAGE: "chsm_serv"
-  DEPLOY_DIR: "/root/chsm_serv/"
+  DEPLOY_DIR: "/root/chsm_serv"
   CONTAINER_NAME: "chsm_serv"
   HOST_PORT: "5008"
-  CONTAINER_PORT: "5008"
+  CONTAINER_PORT: "5001" 
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [22.x]
-
     steps:
-      # Шаг 1: Получение кода из репозитория
+      # Шаг 1: Получение кода
       - uses: actions/checkout@v4
 
-      # Шаг 2: Проверка содержимого рабочей директории
-      - name: List files in the working directory
-        run: |
-          ls -la
-
-      # Шаг 3: Установка Node.js
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      # Шаг 2: Установка Bun
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          bun-version: latest # или укажите конкретную версию, например 1.1.0
 
-      # Шаг 4: Установка зависимостей
-      - run: npm ci
+      # Шаг 3: Установка зависимостей (использует bun.lockb)
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
-      # Шаг 5: Сборка проекта
-      - run: npm run build --if-present
+      # Шаг 4: Сборка проекта (если есть скрипт build)
+      - name: Build project
+        run: bun run build --if-present
 
-      # Шаг 6: Установка Docker Buildx
+      # Шаг 5: Сборка Docker-образа
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Шаг 7: Сборка Docker-образа
       - name: Build Docker image
         run: |
-          docker build -t $DOCKER_IMAGE .
+          docker build -t ${{ env.DOCKER_IMAGE }} .
           docker images
 
-      # Шаг 8: Сохранение Docker-образа в tar-файл
+      # Шаг 6: Сохранение Docker-образа в tar-файл
       - name: Save Docker image
         run: |
-          docker save $DOCKER_IMAGE -o $DOCKER_IMAGE.tar
+          docker save ${{ env.DOCKER_IMAGE }} -o ${{ env.DOCKER_IMAGE }}.tar
           ls -lh
 
-      # Шаг 9: Установка sshpass
+      # Шаг 7: Установка sshpass
       - name: Install sshpass
         run: |
           sudo apt-get update
           sudo apt-get install -y sshpass
 
-      # Шаг 10: Копирование файлов на удаленный сервер с использованием пароля
+      # Шаг 8: Подготовка папки и Копирование файлов на удаленный сервер
       - name: Copy files to remote server
         run: |
-          sshpass -p "${{ secrets.SUDO_PASSWORD }}" scp -o StrictHostKeyChecking=no $DOCKER_IMAGE.tar ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:$DEPLOY_DIR
-          sshpass -p "${{ secrets.SUDO_PASSWORD }}" scp -o StrictHostKeyChecking=no docker-compose.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:$DEPLOY_DIR
+          # Создаем директорию перед копированием
+          sshpass -p "${{ secrets.SUDO_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "mkdir -p ${{ env.DEPLOY_DIR }}"
+          # Копируем образ и docker-compose
+          sshpass -p "${{ secrets.SUDO_PASSWORD }}" scp -o StrictHostKeyChecking=no ${{ env.DOCKER_IMAGE }}.tar ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ env.DEPLOY_DIR }}/
+          sshpass -p "${{ secrets.SUDO_PASSWORD }}" scp -o StrictHostKeyChecking=no docker-compose.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ env.DEPLOY_DIR }}/
 
   deploy-to-server:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      # Шаг 1: Установка sshpass
       - name: Install sshpass
         run: |
           sudo apt-get update
           sudo apt-get install -y sshpass
 
-      # Шаг 2: Создание директории на удаленном сервере
-      - name: Create deploy directory on remote server
-        run: |
-          sshpass -p "${{ secrets.SUDO_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
-            mkdir -p $DEPLOY_DIR &&
-            chmod 777 $DEPLOY_DIR
-          "
-
-      # Шаг 3: Проверка наличия файлов перед развертыванием
-      - name: Check for required files
-        run: |
-          sshpass -p "${{ secrets.SUDO_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
-            if [ ! -f '$DEPLOY_DIR/$DOCKER_IMAGE.tar' ]; then
-              echo 'Error: Docker image not found on server!'
-              exit 1
-            fi
-            if [ ! -f '$DEPLOY_DIR/docker-compose.yml' ]; then
-              echo 'Error: docker-compose.yml not found on server!'
-              exit 1
-            fi
-          "
-
-      # Шаг 4: Развертывание Docker-образа на удаленном сервере
       - name: Deploy Docker image on remote server
         run: |
           sshpass -p "${{ secrets.SUDO_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
-            cd $DEPLOY_DIR &&
-            mkdir -p data && 
-            chmod 777 data && 
-            docker load -i $DOCKER_IMAGE.tar &&
-            docker-compose down && docker-compose up -d
+            cd ${{ env.DEPLOY_DIR }} &&
+            
+            # Проверка наличия файлов
+            if [ ! -f ${{ env.DOCKER_IMAGE }}.tar ]; then echo 'Image tar not found'; exit 1; fi
+            
+            # Загрузка образа в Docker
+            docker load -i ${{ env.DOCKER_IMAGE }}.tar &&
+            
+            # Создание доп. папок если нужны
+            mkdir -p data && chmod 777 data &&
+            
+            # Перезапуск контейнеров
+            docker-compose down || true
+            docker-compose up -d &&
+            
+            # Очистка старых образов и tar-файла для экономии места
+            rm ${{ env.DOCKER_IMAGE }}.tar
+            docker image prune -f
           "
