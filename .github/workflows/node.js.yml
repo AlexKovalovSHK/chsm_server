@@ -70,25 +70,10 @@ jobs:
         run: |
           sshpass -p "${{ secrets.SUDO_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
             cd ${{ env.DEPLOY_DIR }} &&
-            
-            # 1. Загружаем новый образ
             docker load -i ${{ env.DOCKER_IMAGE }}.tar &&
-            
-            # 2. Создаем файл .env из секретов GitHub (решает проблему с токеном)
-            echo 'TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}' > .env &&
-            # Если есть база данных, добавьте её сюда:
-            # echo 'MONGO_URI=${{ secrets.MONGO_URI }}' >> .env &&
-
-            # 3. Принудительно удаляем старый контейнер, если он конфликтует (решает Conflict)
             docker rm -f ${{ env.CONTAINER_NAME }} || true
-            
-            # 4. Останавливаем проект и удаляем сирот (orphans)
             docker-compose down --remove-orphans || true
-            
-            # 5. Запуск новой версии
             docker-compose up -d &&
-            
-            # 6. Финальная очистка
             rm ${{ env.DOCKER_IMAGE }}.tar &&
             docker image prune -f
           "
