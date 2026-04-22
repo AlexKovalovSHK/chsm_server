@@ -1,4 +1,4 @@
-name: Bun CI/CD with Docker Build and Deploy
+name: Bun CI/CD - Optimized Build and Deploy
 
 on:
   push:
@@ -10,70 +10,67 @@ env:
   DOCKER_IMAGE: "chsm_serv"
   DEPLOY_DIR: "/root/chsm_serv"
   CONTAINER_NAME: "chsm_serv"
-  HOST_PORT: "5008"
-  CONTAINER_PORT: "5001" 
 
 jobs:
-  build:
+  build-and-deploy: # Объединили в одну джобу для скорости
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      # Шаг 3: Установка зависимостей (использует ваш bun.lock)
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Шаг 4: Сборка проекта
       - name: Build project
         run: bun run build
 
-      # Шаг 5: Сборка Docker-образа
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
         run: |
           docker build -t ${{ env.DOCKER_IMAGE }}:latest .
-
-      # Шаг 6: Сохранение образа
-      - name: Save Docker image
-        run: |
           docker save ${{ env.DOCKER_IMAGE }}:latest -o ${{ env.DOCKER_IMAGE }}.tar
 
       - name: Install sshpass
         run: |
-          sudo apt-get update
+          # Устанавливаем sshpass без лишних обновлений, если это возможно
           sudo apt-get install -y sshpass
 
-      # Шаг 7: Подготовка папки и копирование файлов
-      - name: Copy files to remote server
+      - name: Deploy to Server
         run: |
+          # 1. Подготовка папки на сервере
           sshpass -p "${{ secrets.SUDO_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "mkdir -p ${{ env.DEPLOY_DIR }}"
+          
+          # 2. Копирование файлов (образ и конфиг)
           sshpass -p "${{ secrets.SUDO_PASSWORD }}" scp -o StrictHostKeyChecking=no ${{ env.DOCKER_IMAGE }}.tar ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ env.DEPLOY_DIR }}/
           sshpass -p "${{ secrets.SUDO_PASSWORD }}" scp -o StrictHostKeyChecking=no docker-compose.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ env.DEPLOY_DIR }}/
 
-  deploy-to-server:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Install sshpass
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y sshpass
-
-      - name: Deploy Docker image on remote server
-        run: |
+          # 3. Выполнение команд на сервере
           sshpass -p "${{ secrets.SUDO_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
             cd ${{ env.DEPLOY_DIR }} &&
+            
+            # Загружаем образ
             docker load -i ${{ env.DOCKER_IMAGE }}.tar &&
+            
+            # Создаем .env прямо на сервере (чтобы работал Телеграм)
+            echo 'TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}' > .env &&
+            
+            # ПРИНУДИТЕЛЬНО удаляем старый контейнер (решает ошибку Conflict)
             docker rm -f ${{ env.CONTAINER_NAME }} || true
+            
+            # Останавливаем проект и удаляем сирот
             docker-compose down --remove-orphans || true
+            
+            # Запускаем всё заново
             docker-compose up -d &&
+            
+            # Очистка места
             rm ${{ env.DOCKER_IMAGE }}.tar &&
             docker image prune -f
           "
