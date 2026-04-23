@@ -45,13 +45,13 @@ export class UserService {
   }
 
   // 4. Обновление данных
-  async update(id: string, updateData: Partial<User>) {
-    const updatedUser = await this.userModel
-      .findByIdAndUpdate(id, { $set: updateData }, { new: true })
-      .exec();
-    if (!updatedUser) throw new NotFoundException('Пользователь не найден');
-    return updatedUser;
-  }
+ async update(id: string, updateData: Partial<User>) {
+  const updatedUser = await this.userModel
+    .findByIdAndUpdate(id, { $set: updateData }, { returnDocument: 'after' })
+    .exec();
+  if (!updatedUser) throw new NotFoundException('Пользователь не найден');
+  return updatedUser;
+}
 
   // 5. Мягкое удаление (Soft Delete)
   async softDelete(id: string) {

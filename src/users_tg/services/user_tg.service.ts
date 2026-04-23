@@ -1,7 +1,12 @@
-import { Injectable, Logger, NotFoundException, ConflictException } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { UserTg } from "../schemas/user_tg.schema";
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { UserTg } from '../schemas/user_tg.schema';
 
 @Injectable()
 export class UserTgService {
@@ -39,11 +44,16 @@ export class UserTgService {
    */
   async upsertUser(tgData: Partial<UserTg>): Promise<UserTg> {
     const { tgId, ...updateData } = tgData;
-    return this.userModel.findOneAndUpdate(
-      { tgId },
-      { $set: updateData },
-      { upsert: true, new: true }
-    ).exec() as Promise<UserTg>;
+    return this.userModel
+      .findOneAndUpdate(
+        { tgId },
+        { $set: updateData },
+        {
+          upsert: true,
+          returnDocument: 'after',
+        },
+      )
+      .exec() as Promise<UserTg>;
   }
 
   /**
@@ -64,7 +74,10 @@ export class UserTgService {
    * 5. Обновить шаг регистрации
    */
   async updateRegistrationStep(tgId: string, step: string): Promise<void> {
-    await this.userModel.updateOne({ tgId }, { $set: { registrationStep: step } });
+    await this.userModel.updateOne(
+      { tgId },
+      { $set: { registrationStep: step } },
+    );
   }
 
   /**
@@ -73,26 +86,30 @@ export class UserTgService {
   async linkEmail(tgId: string, email: string): Promise<UserTg> {
     const normalizedEmail = email.toLowerCase().trim();
 
-    const existingUser = await this.userModel.findOne({ 
-      email: normalizedEmail, 
-      tgId: { $ne: tgId } 
-    }).exec();
+    const existingUser = await this.userModel
+      .findOne({
+        email: normalizedEmail,
+        tgId: { $ne: tgId },
+      })
+      .exec();
 
     if (existingUser) {
       throw new ConflictException('Email already in use');
     }
 
-    const updatedUser = await this.userModel.findOneAndUpdate(
-      { tgId },
-      { 
-        $set: { 
-          email: normalizedEmail, 
-          registrationStep: 'completed',
-          isVerified: true 
-        } 
-      },
-      { new: true }
-    ).exec();
+    const updatedUser = await this.userModel
+      .findOneAndUpdate(
+        { tgId },
+        {
+          $set: {
+            email: normalizedEmail,
+            registrationStep: 'completed',
+            isVerified: true,
+          },
+        },
+        { new: true },
+      )
+      .exec();
 
     if (!updatedUser) {
       throw new NotFoundException(`User ${tgId} not found`);
@@ -112,9 +129,11 @@ export class UserTgService {
    * 8. Получить список активных студентов для рассылки
    */
   async getActiveStudentsForMailing(): Promise<UserTg[]> {
-    return this.userModel.find({
-      status: 'active',
-      isVerified: true
-    }).exec();
+    return this.userModel
+      .find({
+        status: 'active',
+        isVerified: true,
+      })
+      .exec();
   }
 }

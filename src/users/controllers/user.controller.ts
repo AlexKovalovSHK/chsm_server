@@ -12,7 +12,7 @@ import {
 import { UserService } from '../services/user.service';
 import { ClassroomService } from '../../classroom/service/classroom.service';
 
-@Controller('users')
+@Controller('api/users')
 export class UserController {
     private readonly logger = new Logger(ClassroomService.name);
 
