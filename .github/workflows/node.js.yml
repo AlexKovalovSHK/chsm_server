@@ -2,7 +2,7 @@ name: Node.js CI with Docker Build and Deploy
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main" ] # Убедитесь, что ветка именно main!
   pull_request:
     branches: [ "main" ]
 
@@ -10,86 +10,48 @@ env:
   DOCKER_IMAGE: "chsm_serv"
   DEPLOY_DIR: "/root/chsm_serv/"
   CONTAINER_NAME: "chsm_serv"
-  HOST_PORT: "5008"
-  CONTAINER_PORT: "5008"
 
 jobs:
-  build:
+  build-and-deploy: # Объединил в один Job для надежности
     runs-on: ubuntu-latest
 
     steps:
-      # Шаг 1: Получение кода из репозитория
       - uses: actions/checkout@v4
 
-      # Шаг 2: Установка Bun
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      # Шаг 3: Установка зависимостей
       - run: bun install --frozen-lockfile
-
-      # Шаг 4: Сборка проекта (компиляция TypeScript)
       - run: bun run build
 
-      # Шаг 5: Установка Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Шаг 6: Сборка Docker-образа
       - name: Build Docker image
-        run: |
-          docker build -t $DOCKER_IMAGE:latest .
+        run: docker build -t ${{ env.DOCKER_IMAGE }}:latest .
 
-      # Шаг 7: Сохранение Docker-образа в tar-файл
       - name: Save Docker image
-        run: |
-          docker save $DOCKER_IMAGE:latest -o $DOCKER_IMAGE.tar
+        run: docker save ${{ env.DOCKER_IMAGE }}:latest -o ${{ env.DOCKER_IMAGE }}.tar
 
-      # Шаг 8: Установка sshpass
       - name: Install sshpass
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
 
-      # Шаг 9: Копирование файлов на удаленный сервер
-      - name: Copy files to remote server
+      - name: Copy files and Deploy
         run: |
-          # Создаем директорию перед копированием, чтобы scp не выдал ошибку
-          sshpass -p "${{ secrets.SUDO_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "mkdir -p $DEPLOY_DIR"
-          # Копируем образ и docker-compose
-          sshpass -p "${{ secrets.SUDO_PASSWORD }}" scp -o StrictHostKeyChecking=no $DOCKER_IMAGE.tar ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:$DEPLOY_DIR
-          sshpass -p "${{ secrets.SUDO_PASSWORD }}" scp -o StrictHostKeyChecking=no docker-compose.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:$DEPLOY_DIR
-
-  deploy-to-server:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Install sshpass
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y sshpass
-
-      # Шаг 1: Подготовка папок и прав (КЛЮЧЕВОЙ МОМЕНТ ДЛЯ СОХРАНЕНИЯ ДАННЫХ)
-      - name: Prepare environment and deploy
-        run: |
+          # Копируем файлы
+          sshpass -p "${{ secrets.SUDO_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "mkdir -p ${{ env.DEPLOY_DIR }}"
+          sshpass -p "${{ secrets.SUDO_PASSWORD }}" scp -o StrictHostKeyChecking=no ${{ env.DOCKER_IMAGE }}.tar docker-compose.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:${{ env.DEPLOY_DIR }}
+          
+          # Запускаем деплой на сервере
           sshpass -p "${{ secrets.SUDO_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
-            cd $DEPLOY_DIR &&
-            
-            # Создаем папку data, если её нет. Она НЕ удалится при деплое.
+            cd ${{ env.DEPLOY_DIR }} &&
             mkdir -p data &&
-            # Даем права на папку, чтобы Docker (внутри которого может быть другой пользователь) мог писать в БД
             chmod 777 data &&
-            
-            # Загружаем образ из архива
-            docker load -i $DOCKER_IMAGE.tar &&
-            
-            # Перезапускаем контейнер
-            # down удаляет контейнер, но НЕ трогает примонтированные папки (volumes)
-            docker-compose down && 
+            docker load -i ${{ env.DOCKER_IMAGE }}.tar &&
+            docker-compose down || true && 
             docker-compose up -d &&
-            
-            # Очистка старых неиспользуемых образов, чтобы не забивать диск
+            rm ${{ env.DOCKER_IMAGE }}.tar &&
             docker image prune -f
           "
