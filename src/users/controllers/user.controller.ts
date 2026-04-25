@@ -23,9 +23,9 @@ export class UserController {
 
   onModuleInit() {
     if (!process.env.GOOGLE_CLIENT_ID) {
-      this.logger.error('❌ GOOGLE_CLIENT_ID не найден в .env'); // Используем логгер вместо console.error
+      this.logger.error('❌ GOOGLE_CLIENT_ID не найден в .env');
     } else {
-      this.logger.log('✅ Google API настроен корректно'); // Вместо console.log
+      this.logger.log('✅ Google API настроен корректно');
     }
   }
 

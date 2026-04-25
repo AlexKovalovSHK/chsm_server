@@ -135,4 +135,25 @@ export class BotService implements OnModuleInit {
       }
     }
   }
+
+  // В BotService.ts
+
+async sendMessage(tgId: string, text: string) {
+  try {
+    await this.bot.api.sendMessage(tgId, text, {
+      parse_mode: 'HTML', // Или 'MarkdownV2', HTML обычно удобнее для динамического текста
+    });
+    return { success: true };
+  } catch (e) {
+    this.logger.error(`Ошибка отправки сообщения пользователю ${tgId}: ${e.message}`);
+    
+    // Если пользователь заблокировал бота
+    if (e.description?.includes('forbidden') || e.description?.includes('blocked')) {
+      await this.userService.markAsBlocked(tgId);
+      throw new Error('User blocked the bot');
+    }
+    throw e;
+  }
+}
+
 }

@@ -1,6 +1,17 @@
-import { Controller, Get, Post, Body, Param, Delete, Patch, Query } from "@nestjs/common";
-import { UserTgService } from "../services/user_tg.service";
-import { BotService } from "../../telegram/bot/bot.service";
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Patch,
+  Query,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { UserTgService } from '../services/user_tg.service';
+import { BotService } from '../../telegram/bot/bot.service';
 
 @Controller('admin/tg-users') // Лучше добавить префикс admin для ясности
 export class UserTgController {
@@ -26,20 +37,20 @@ export class UserTgController {
   @Post('broadcast')
   async broadcastMessage(@Body('text') text: string) {
     const users = await this.userTgService.getActiveStudentsForMailing();
-    
+
     let successCount = 0;
     for (const user of users) {
       try {
         // Вызываем метод бота для отправки сообщения
-        await this.botService.sendTask(user.tgId, "📢 ОБЪЯВЛЕНИЕ", text);
+        await this.botService.sendTask(user.tgId, '📢 ОБЪЯВЛЕНИЕ', text);
         successCount++;
         // Небольшая задержка, чтобы не спамить в API Telegram
-        await new Promise(res => setTimeout(res, 50)); 
+        await new Promise((res) => setTimeout(res, 50));
       } catch (e) {
         console.error(`Ошибка при рассылке для ${user.tgId}`);
       }
     }
-    
+
     return { message: 'Рассылка завершена', sentTo: successCount };
   }
 
@@ -48,5 +59,37 @@ export class UserTgController {
   async removeUser(@Param('tgId') tgId: string) {
     // Метод в сервисе для удаления
     return this.userTgService.remove(tgId);
+  }
+
+  @Post(':tgId/send-message')
+  async sendMessageToUser(
+    @Param('tgId') tgId: string,
+    @Body('message') message: string,
+  ) {
+    if (!message || message.trim().length === 0) {
+      throw new Error('Сообщение не может быть пустым');
+    }
+
+    // 1. Проверяем, существует ли пользователь в базе
+    const user = await this.userTgService.findByTgId(tgId);
+    if (!user) {
+      throw new NotFoundException(`Пользователь с TG ID ${tgId} не найден`);
+    }
+
+    try {
+      // 2. Отправляем через BotService
+      await this.botService.sendMessage(tgId, message);
+      return {
+        status: 'success',
+        message: `Сообщение успешно отправлено пользователю ${tgId}`,
+      };
+    } catch (error) {
+      if (error.message === 'User blocked the bot') {
+        throw new InternalServerErrorException(
+          'Пользователь заблокировал бота',
+        );
+      }
+      throw new InternalServerErrorException('Не удалось отправить сообщение');
+    }
   }
 }
