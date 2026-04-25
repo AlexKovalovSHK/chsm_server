@@ -63,6 +63,43 @@ export class UserTgService {
     return this.userModel.findById(id).exec();
   }
 
+  // В UserTgService.ts
+  async findAllPaginated(query: {
+    page: number;
+    limit: number;
+    search?: string;
+    step?: string;
+  }) {
+    const { page, limit, search, step } = query;
+    const skip = (page - 1) * limit;
+
+    const filters: any = {};
+
+    if (search) {
+      filters.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { username: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    if (step && step !== 'all') {
+      filters.registrationStep = step;
+    }
+
+    const [data, total] = await Promise.all([
+      this.userModel
+        .find(filters)
+        .limit(limit)
+        .skip(skip)
+        .sort({ createdAt: -1 })
+        .exec(),
+      this.userModel.countDocuments(filters).exec(),
+    ]);
+
+    return { data, total }; // ВОТ ЭТО ОЖИДАЕТ ФРОНТЕНД
+  }
+
   /**
    * 4.1 Найти одного по Telegram ID
    */
