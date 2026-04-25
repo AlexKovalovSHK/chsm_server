@@ -21,13 +21,13 @@ export class UserTgController {
   ) {}
 
   // 1. Получить всех пользователей (с простейшей фильтрацией)
-  /*@Get()
+  @Get()
   async getAllUsers(@Query('role') role?: string) {
     // Здесь можно вызвать метод findAll из сервиса
     return this.userTgService.findAll(role);
-  }*/
+  }
 
-  @Get()
+  /*@Get()
 async getAllUsers(
   @Query('page') page: number = 1,
   @Query('limit') limit: number = 10,
@@ -41,7 +41,7 @@ async getAllUsers(
     search,
     step,
   });
-}
+}*/
 
   // 2. Получить одного пользователя по tgId
   @Get(':tgId')
