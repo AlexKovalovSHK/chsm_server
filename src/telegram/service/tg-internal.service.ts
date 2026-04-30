@@ -1,5 +1,5 @@
 import { Injectable, ConflictException, Logger, NotFoundException } from '@nestjs/common';
-import { UserService } from 'src/users/services/user.service';
+import { UserService } from '../../users/application/user.service';
 
 @Injectable()
 export class TgInternalService {
@@ -29,7 +29,7 @@ export class TgInternalService {
     const user = await this.userService.findByTgId(tgId);
     if (!user) throw new NotFoundException('User not found');
 
-    return this.userService.update(user.id as string, { 
+    return this.userService.update(user.id.toString(), { 
       registrationStep: step 
     });
   }
@@ -49,7 +49,7 @@ export class TgInternalService {
     const user = await this.userService.findByTgId(tgId);
     if (!user) throw new NotFoundException('User not found');
 
-    return this.userService.update(user.id as string, {
+    return this.userService.update(user.id.toString(), {
       email: normalizedEmail,
       isVerified: true,
       registrationStep: 'completed',
@@ -61,7 +61,7 @@ export class TgInternalService {
   async markAsBlocked(tgId: string) {
     const user = await this.userService.findByTgId(tgId);
     if (user) {
-      return this.userService.update(user.id as string, { status: 'blocked' });
+      return this.userService.update(user.id.toString(), { status: 'blocked' });
     }
   }
 }

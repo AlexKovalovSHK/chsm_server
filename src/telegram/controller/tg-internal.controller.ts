@@ -9,7 +9,7 @@ import {
     Param,
     UseGuards,
 } from '@nestjs/common';
-import { UserService } from 'src/users/services/user.service';
+import { UserService } from '../../users/application/user.service';
 import { TgInternalService } from '../service/tg-internal.service';
 import { BotApiService } from '../service/bot-api.service';
 

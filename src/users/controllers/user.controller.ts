@@ -9,7 +9,7 @@ import {
   Query,
   Logger,
 } from '@nestjs/common';
-import { UserService } from '../services/user.service';
+import { UserService } from '../application/user.service';
 import { ClassroomService } from '../../classroom/service/classroom.service';
 
 @Controller('api/users')
@@ -34,7 +34,6 @@ export class UserController {
     @Query('search') search?: string,
     @Query('status') status?: string,
   ) {
-    // Вызывает метод с фильтрацией
     return this.userService.findAll({ search, status });
   }
 

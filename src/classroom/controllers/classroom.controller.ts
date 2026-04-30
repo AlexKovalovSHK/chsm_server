@@ -1,7 +1,7 @@
 import { Controller, Get, Query, Res, Inject, Post, forwardRef } from '@nestjs/common';
 import express from 'express';
 import { ClassroomService } from '../service/classroom.service';
-import { UserService } from '../../users/services/user.service'; // Путь к вашему сервису пользователей
+import { UserService } from '../../users/application/user.service'; // Путь к вашему сервису пользователей
 
 @Controller('auth')
 export class ClassroomController {
