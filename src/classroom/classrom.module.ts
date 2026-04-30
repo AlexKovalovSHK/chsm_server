@@ -4,12 +4,10 @@ import { ClassroomController } from './controllers/classroom.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Course, CourseSchema } from './schemas/course.schema';
 import { UsersModule } from '../users/users.module'; // ИСПОЛЬЗУЙТЕ ../ ВМЕСТО src/
-import { UserTgModule } from '../users_tg/user_tg.module';
 
 @Module({
   imports: [
     forwardRef(() => UsersModule),
-    forwardRef(() => UserTgModule),
     MongooseModule.forFeature([{ name: Course.name, schema: CourseSchema }]),
   ],
   providers: [ClassroomService],

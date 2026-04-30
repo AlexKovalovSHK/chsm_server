@@ -6,8 +6,7 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ClassroomModule } from './classroom/classrom.module';
 import { UsersModule } from './users/users.module';
-import { TelegramModule } from './telegram/telegram.module';
-import { UserTgModule } from './users_tg/user_tg.module';
+import { TelegramModule } from './telegram/tg.module';
 
 @Module({
   imports: [
@@ -22,13 +21,11 @@ import { UserTgModule } from './users_tg/user_tg.module';
     }),
 
     ScheduleModule.forRoot(),
-
     TelegramModule,
     ClassroomModule,
-    UsersModule,
-    UserTgModule,
+    UsersModule
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

@@ -77,13 +77,16 @@ export class User extends Document {
 
   // ── Аудит миграции ────────────────────────────────────────
   @Prop()
-  _sourceUser: string; // ObjectId из старой коллекции users_old
+  _sourceUser: string;
 
   @Prop()
-  _sourceTg: string;   // ObjectId из старой коллекции users_tg
+  _sourceTg: string;
 
   @Prop()
   _mergedAt: Date;
+
+  @Prop()
+  password: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

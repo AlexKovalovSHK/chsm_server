@@ -10,10 +10,10 @@ async function bootstrap() {
 
   // Добавляем Basic Auth для Swagger
   app.use(
-    ['/api/docs', '/api/docs-json'], // Ограничиваем доступ к Swagger UI и JSON
+    ['/api/docs', '/api/docs-json'],
     basicAuth({
-      users: { admin: 'Abc!1234' }, // Укажите логин и пароль
-      challenge: true, // Включаем окно аутентификации в браузере
+      users: { admin: 'Abc!1234' },
+      challenge: true,
     }),
   );
 
