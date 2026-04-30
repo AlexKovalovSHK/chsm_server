@@ -1,5 +1,6 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { User } from '../domain/user.entity';
+import { UserRole } from '../domain/value-objects/user-role.vo';
 import * as userRepositoryInterface from '../domain/user.repository.interface';
 
 @Injectable()
@@ -22,10 +23,22 @@ export class UserService {
     return this.repo.findByTgId(tgId);
   }
 
+  async findByEmail(email: string) {
+    return this.repo.findByEmail(email);
+  }
+
   async update(id: string, updateData: any) {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Пользователь не найден');
     user.patch(updateData);
+    return this.repo.save(user);
+  }
+
+  async changeRole(id: string, role: string) {
+    const user = await this.repo.findById(id);
+    if (!user) throw new NotFoundException('Пользователь не найден');
+
+    user.changeRole(UserRole.fromString(role));
     return this.repo.save(user);
   }
 

@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as cookieParser from 'cookie-parser';
@@ -23,12 +24,12 @@ async function bootstrap() {
     .setDescription('Docs REST API')
     .setVersion('1.0.0')
     .addTag('ALEX K')
+    .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('/api/docs', app, document);
 
-  //app.use(cookieParser()); // ✅ Подключаем обработку кук
-  //app.enableCors();
+  app.useGlobalPipes(new ValidationPipe());
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin) {
@@ -41,9 +42,10 @@ async function bootstrap() {
         "http://localhost:5174",
         "http://localhost:3000",
         "http://localhost:3001",
+        "http://localhost:5008", // Добавляем сам сервер для Swagger/Docs
       ];
 
-      if (allowedOrigins.includes(origin)) {
+      if (allowedOrigins.includes(origin) || origin.startsWith('http://localhost:')) {
         callback(null, true);
       } else {
         callback(new Error(`Origin '${origin}' not allowed by CORS`));

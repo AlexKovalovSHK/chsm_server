@@ -123,6 +123,10 @@ export class User {
     this.props.lastName = lastName;
   }
 
+  changeRole(role: UserRole) {
+    this.props.role = role;
+  }
+
   patch(data: Partial<UserProps>) {
     Object.assign(this.props, data);
   }
