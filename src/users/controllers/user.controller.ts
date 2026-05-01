@@ -54,6 +54,46 @@ export class UserController {
     return users.map((user) => UserMapper.toResponseDto(user));
   }
 
+  @Get('link-url')
+async getLinkUrl(@Query('email') email: string) {
+  // Формируем state вручную и передаем ОДНИМ аргументом
+  const state = `web:${email}`; 
+  const url = this.classroomService.getAuthUrl(state); // Теперь ошибок нет
+  return { url };
+}
+
+
+@Public() 
+@Get('link')
+async link(
+  @Res() res: express.Response,
+  @Query('tgId') tgId?: string,
+  @Query('email') email?: string,
+) {
+  let state = '';
+  if (tgId) {
+    state = `tg:${tgId}`;
+  } else if (email) {
+    state = `web:${email}`;
+  } else {
+    throw new BadRequestException('Необходим tgId или email');
+  }
+
+  // Передаем сформированную строку state
+  const url = this.classroomService.getAuthUrl(state); 
+  return res.redirect(url);
+}
+
+@Get('auth-link')
+async getAuthLink(@Query('tgId') tgId: string) {
+  if (!tgId) throw new BadRequestException('tgId is required');
+  
+  const state = `tg:${tgId}`;
+  const url = this.classroomService.getAuthUrl(state);
+
+  return { url };
+}
+
   @Get('admins/stats')
   async getCourseStats(@Query('courseId') courseId: string) {
     try {
@@ -108,44 +148,4 @@ export class UserController {
     return this.userService.softDelete(id);
   }
 
- // В user.controller.ts
-
-@Get('link-url')
-async getLinkUrl(@Query('email') email: string) {
-  // Формируем state вручную и передаем ОДНИМ аргументом
-  const state = `web:${email}`; 
-  const url = this.classroomService.getAuthUrl(state); // Теперь ошибок нет
-  return { url };
-}
-
-@Public() // Не забудьте сделать этот метод доступным для бота без JWT
-@Get('link')
-async link(
-  @Res() res: express.Response,
-  @Query('tgId') tgId?: string,
-  @Query('email') email?: string,
-) {
-  let state = '';
-  if (tgId) {
-    state = `tg:${tgId}`;
-  } else if (email) {
-    state = `web:${email}`;
-  } else {
-    throw new BadRequestException('Необходим tgId или email');
-  }
-
-  // Передаем сформированную строку state
-  const url = this.classroomService.getAuthUrl(state); 
-  return res.redirect(url);
-}
-
-@Get('auth-link')
-async getAuthLink(@Query('tgId') tgId: string) {
-  if (!tgId) throw new BadRequestException('tgId is required');
-  
-  const state = `tg:${tgId}`;
-  const url = this.classroomService.getAuthUrl(state); // Передаем 1 аргумент
-
-  return { url };
-}
 }
