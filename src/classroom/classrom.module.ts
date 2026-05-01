@@ -4,8 +4,8 @@ import { ClassroomController } from './controllers/classroom.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Course, CourseSchema } from './schemas/course.schema';
 import { UsersModule } from '../users/users.module'; // ИСПОЛЬЗУЙТЕ ../ ВМЕСТО src/
-import { User } from 'src/users/domain/user.entity';
-import { UserSchema } from 'src/users/infrastructure/user.document';
+import { User } from '../users/domain/user.entity';
+import { UserSchema } from '../users/infrastructure/user.document';
 import { GoogleAuth, GoogleAuthSchema } from './classroomAuth/google-auth.schema';
 
 @Module({

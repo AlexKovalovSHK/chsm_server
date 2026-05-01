@@ -23,10 +23,10 @@ import { AuthModule } from './auth/auth.module';
     }),
 
     ScheduleModule.forRoot(),
+    UsersModule,
     AuthModule,
     TelegramModule,
     ClassroomModule,
-    UsersModule
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -3,7 +3,7 @@ import { google, classroom_v1 } from 'googleapis';
 import { Course } from '../schemas/course.schema';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
-import { UserDocument } from 'src/users/infrastructure/user.document';
+import { UserDocument } from '../../users/infrastructure/user.document';
 import { GoogleAuth } from '../classroomAuth/google-auth.schema';
 
 @Injectable()
