@@ -2,6 +2,7 @@ import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { User } from '../domain/user.entity';
 import { UserRole } from '../domain/value-objects/user-role.vo';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { NewUserDto } from './dto/new-user.dto';
 import * as userRepositoryInterface from '../domain/user.repository.interface';
 
 @Injectable()
@@ -138,6 +139,19 @@ export class UserService {
 
   async findAllForSync() {
     return this.repo.findAllWithGoogle();
+  }
+
+  async create(dto: NewUserDto) {
+    const user = User.create({
+      firstName: dto.firstName || 'New',
+      lastName: dto.lastName || 'User',
+      email: dto.email,
+    });
+    return this.repo.save(user);
+  }
+
+  async delete(id: string) {
+    await this.repo.delete(id);
   }
 
 }

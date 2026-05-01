@@ -14,4 +14,5 @@ export interface IUserRepository {
   findAllWithGoogle(): Promise<User[]>;
   save(user: User): Promise<User>;
   findByGoogleId(googleId: string): Promise<User | null>;
+  delete(id: string): Promise<void>;
 }

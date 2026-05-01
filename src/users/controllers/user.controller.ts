@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { UserService } from '../application/user.service';
 import { UpdateUserDto } from '../application/dto/update-user.dto';
+import { NewUserDto } from '../application/dto/new-user.dto';
 import { UserMapper } from '../infrastructure/user.mapper';
 import { ClassroomService } from '../../classroom/service/classroom.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -159,6 +160,13 @@ export class UserController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   async remove(@Param('id') id: string) {
-    return this.userService.softDelete(id);
+    return this.userService.delete(id);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  async create(@Body() createUserDto: NewUserDto) {
+    const user = await this.userService.create(createUserDto);
+    return UserMapper.toResponseDto(user);
   }
 }

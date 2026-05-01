@@ -12,6 +12,7 @@ import {
 import { UserService } from '../../users/application/user.service';
 import { TgInternalService } from '../service/tg-internal.service';
 import { BotApiService } from '../service/bot-api.service';
+import { NewUserTgDto } from 'src/users/application/dto/new-user-tg.dto';
 
 @Controller('internal/users')
 export class TgInternalController {
@@ -30,6 +31,11 @@ export class TgInternalController {
     async getByTg(@Param('tgId') tgId: string) {
         // Используем уже существующий метод в UserService
         return await this.userService.findByTgId(tgId);
+    }
+
+    @Patch('sync')
+    async sync(@Body() dto: NewUserTgDto) {
+        return await this.tgInternalService.syncUserData(dto);
     }
 
     @Patch('registration-step')

@@ -80,4 +80,8 @@ export class MongooseUserRepository implements IUserRepository {
     const doc = await this.model.findOne({ googleId }).exec();
     return doc ? UserMapper.toDomain(doc) : null;
   }
+
+  async delete(id: string): Promise<void> {
+    await this.model.findByIdAndDelete(id).exec();
+  }
 }

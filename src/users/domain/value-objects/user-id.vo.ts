@@ -1,10 +1,10 @@
-import { randomUUID } from 'crypto';
+import { Types } from 'mongoose';
 
 export class UserID {
   private constructor(private readonly value: string) {}
 
   static generate(): UserID {
-    return new UserID(randomUUID());
+    return new UserID(new Types.ObjectId().toHexString());
   }
 
   static fromString(id: string): UserID {

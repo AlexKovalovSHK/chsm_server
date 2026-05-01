@@ -1,11 +1,12 @@
 import { Injectable, ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import { UserService } from '../../users/application/user.service';
+import { NewUserTgDto } from 'src/users/application/dto/new-user-tg.dto';
 
 @Injectable()
 export class TgInternalService {
   private readonly logger = new Logger(TgInternalService.name);
 
-  constructor(private readonly userService: UserService) {} // Внедряем UserService
+  constructor(private readonly userService: UserService) { } // Внедряем UserService
 
   // 1. Создание или обновление при входе в бот
   async upsertFromTelegram(data: {
@@ -24,13 +25,36 @@ export class TgInternalService {
     });
   }
 
+  async syncUserData(dto: NewUserTgDto) {
+    const { tgId, ...updateData } = dto;
+
+    let user = await this.userService.findByTgId(tgId);
+
+    if (!user) {
+      // Если пользователя нет, создаем новую запись с начальными данными
+      user = await this.userService.create({
+        tgId,
+        username: updateData.username,
+        firstName: updateData.firstName,
+        lastName: updateData.lastName,
+        registrationStep: updateData.registrationStep || 'new',
+        status: 'pending'
+      });
+    } else {
+      // Если пользователь есть, просто обновляем пришедшие поля
+      user = await this.userService.update(user.id.toString(), updateData);
+    }
+
+    return user;
+  }
+
   // 2. Обновление шага регистрации
   async updateRegistrationStep(tgId: string, step: string) {
     const user = await this.userService.findByTgId(tgId);
     if (!user) throw new NotFoundException('User not found');
 
-    return this.userService.update(user.id.toString(), { 
-      registrationStep: step 
+    return this.userService.update(user.id.toString(), {
+      registrationStep: step
     });
   }
 
