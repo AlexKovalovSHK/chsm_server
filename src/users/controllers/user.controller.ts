@@ -22,7 +22,7 @@ import type { JwtPayload } from '../../auth/decorators/current-user.decorator';
 import express from 'express';
 import { Public } from 'src/auth/decorators/public.decorator';
 
-@UseGuards(JwtAuthGuard)
+
 @Controller('api/users')
 export class UserController {
   private readonly logger = new Logger(UserController.name);
@@ -41,11 +41,13 @@ export class UserController {
   }
 
   @Get('me')
+  @UseGuards(JwtAuthGuard)
   getMe(@CurrentUser() user: JwtPayload) {
     return user;
   }
 
   @Get()
+  @UseGuards(JwtAuthGuard)
   async findAll(
     @Query('search') search?: string,
     @Query('status') status?: string,
@@ -55,46 +57,47 @@ export class UserController {
   }
 
   @Get('link-url')
-async getLinkUrl(@Query('email') email: string) {
-  // Формируем state вручную и передаем ОДНИМ аргументом
-  const state = `web:${email}`; 
-  const url = this.classroomService.getAuthUrl(state); // Теперь ошибок нет
-  return { url };
-}
-
-
-@Public() 
-@Get('link')
-async link(
-  @Res() res: express.Response,
-  @Query('tgId') tgId?: string,
-  @Query('email') email?: string,
-) {
-  let state = '';
-  if (tgId) {
-    state = `tg:${tgId}`;
-  } else if (email) {
-    state = `web:${email}`;
-  } else {
-    throw new BadRequestException('Необходим tgId или email');
+  @UseGuards(JwtAuthGuard)
+  async getLinkUrl(@Query('email') email: string) {
+    // Формируем state вручную и передаем ОДНИМ аргументом
+    const state = `web:${email}`;
+    const url = this.classroomService.getAuthUrl(state); // Теперь ошибок нет
+    return { url };
   }
 
-  // Передаем сформированную строку state
-  const url = this.classroomService.getAuthUrl(state); 
-  return res.redirect(url);
-}
+  @Public()
+  @Get('link')
+  async link(
+    @Res() res: express.Response,
+    @Query('tgId') tgId?: string,
+    @Query('email') email?: string,
+  ) {
+    let state = '';
+    if (tgId) {
+      state = `tg:${tgId}`;
+    } else if (email) {
+      state = `web:${email}`;
+    } else {
+      throw new BadRequestException('Необходим tgId или email');
+    }
 
-@Get('auth-link')
-async getAuthLink(@Query('tgId') tgId: string) {
-  if (!tgId) throw new BadRequestException('tgId is required');
-  
-  const state = `tg:${tgId}`;
-  const url = this.classroomService.getAuthUrl(state);
+    // Передаем сформированную строку state
+    const url = this.classroomService.getAuthUrl(state);
+    return res.redirect(url);
+  }
 
-  return { url };
-}
+  @Get('auth-link')
+  async getAuthLink(@Query('tgId') tgId: string) {
+    if (!tgId) throw new BadRequestException('tgId is required');
+
+    const state = `tg:${tgId}`;
+    const url = this.classroomService.getAuthUrl(state);
+
+    return { url };
+  }
 
   @Get('admins/stats')
+  @UseGuards(JwtAuthGuard)
   async getCourseStats(@Query('courseId') courseId: string) {
     try {
       const admin = await this.userService.findAdmin();
@@ -119,18 +122,27 @@ async getAuthLink(@Query('tgId') tgId: string) {
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
   async findOne(@Param('id') id: string) {
     const user = await this.userService.findById(id);
     return UserMapper.toResponseDto(user);
   }
 
+  @Get('by-tg/:id')
+  async findByTgId(@Param('id') id: string) {
+    const user = await this.userService.findByTgId(id);
+    return UserMapper.toResponseDto(user);
+  }
+
   @Patch(':id')
+  @UseGuards(JwtAuthGuard)
   async update(@Param('id') id: string, @Body() updateData: UpdateUserDto) {
     const updatedUser = await this.userService.update(id, updateData);
     return UserMapper.toResponseDto(updatedUser);
   }
 
   @Post(':tgId/add-xp')
+  @UseGuards(JwtAuthGuard)
   async rewardUser(
     @Param('tgId') tgId: string,
     @Body('amount') amount: number,
@@ -139,13 +151,14 @@ async getAuthLink(@Query('tgId') tgId: string) {
   }
 
   @Patch(':id/role')
+  @UseGuards(JwtAuthGuard)
   async changeRole(@Param('id') id: string, @Body('role') role: string) {
     return this.userService.changeRole(id, role);
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
   async remove(@Param('id') id: string) {
     return this.userService.softDelete(id);
   }
-
 }

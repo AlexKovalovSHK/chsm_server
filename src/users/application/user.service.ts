@@ -21,7 +21,9 @@ export class UserService {
   }
 
   async findByTgId(tgId: string) {
-    return this.repo.findByTgId(tgId);
+    const user = await this.repo.findByTgId(tgId);
+    if (!user) throw new NotFoundException('Пользователь не найден');
+    return user;
   }
 
   async findByEmail(email: string) {
