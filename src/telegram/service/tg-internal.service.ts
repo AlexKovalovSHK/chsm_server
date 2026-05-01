@@ -34,6 +34,7 @@ export class TgInternalService {
       // Если пользователя нет, создаем новую запись с начальными данными
       user = await this.userService.create({
         tgId,
+        email: updateData.email,
         username: updateData.username,
         firstName: updateData.firstName,
         lastName: updateData.lastName,

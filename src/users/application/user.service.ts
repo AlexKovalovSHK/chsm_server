@@ -40,6 +40,14 @@ export class UserService {
   async update(id: string, updateData: UpdateUserDto) {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Пользователь не найден');
+
+    // Если у пользователя нет пароля, но есть email (пришедший или существующий), создаем его
+    const emailForPassword = updateData.email || user.email;
+    if (!user.password && emailForPassword) {
+      const cleanEmail = emailForPassword.toLowerCase().trim();
+      (updateData as any).password = await bcrypt.hash(cleanEmail, 10);
+    }
+
     user.updateDetails(updateData);
     return this.repo.save(user);
   }
@@ -146,7 +154,8 @@ export class UserService {
   async create(dto: NewUserDto) {
     let passwordHash = '';
     if (dto.email) {
-      passwordHash = await bcrypt.hash(dto.email, 10);
+      const cleanEmail = dto.email.toLowerCase().trim();
+      passwordHash = await bcrypt.hash(cleanEmail, 10);
     }
 
     const user = User.create({

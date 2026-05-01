@@ -70,6 +70,7 @@ export class MongooseUserRepository implements IUserRepository {
 
   async save(user: User): Promise<User> {
     const persistence = UserMapper.toPersistence(user);
+    console.log(`💾 Saving user ${user.id.toString()}:`, JSON.stringify(persistence, null, 2));
     const doc = await this.model
       .findByIdAndUpdate(user.id.toString(), { $set: persistence }, { upsert: true, new: true })
       .exec();
