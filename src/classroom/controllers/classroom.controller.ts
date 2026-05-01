@@ -110,7 +110,7 @@ export class ClassroomController {
       const report = await this.classroomService.getLiveFullState(adminTokens);
       
       return report;
-    } catch (error) {
+    } catch (error: any) {
       return { error: error.message };
     }
   }
@@ -121,7 +121,7 @@ export class ClassroomController {
     try {
       const adminTokens = await this.classroomService.getAdminTokens();
       return await this.classroomService.syncCoursesToDb(adminTokens);
-    } catch (error) {
+    } catch (error: any) {
       return { error: error.message };
     }
   }
@@ -132,7 +132,7 @@ export class ClassroomController {
     try {
       const adminTokens = await this.classroomService.getAdminTokens();
       return await this.classroomService.postAnnouncementToAll(adminTokens, text);
-    } catch (error) {
+    } catch (error: any) {
       return { error: error.message };
     }
   }

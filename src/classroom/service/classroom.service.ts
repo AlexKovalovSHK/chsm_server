@@ -35,7 +35,7 @@ export class ClassroomService implements OnModuleInit {
   }
 
   // ИСПРАВЛЕНИЕ 1: Теперь принимает tgId и передает его в state
-  getAuthUrl(tgId: string) {
+  /*getAuthUrl(tgId: string) {
     return this.oauth2Client.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent',
@@ -50,9 +50,36 @@ export class ClassroomService implements OnModuleInit {
         'https://www.googleapis.com/auth/classroom.announcements',
       ],
     });
-  }
+  };*/
 
-  getAuthUrlByEmail(email: string) {
+// В classroom.service.ts
+
+// Оставляем только ОДИН аргумент - state
+getAuthUrl(state: string) {
+  return this.oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    state: state, // Google просто вернет эту строку обратно в callback
+    scope: [
+      'https://www.googleapis.com/auth/classroom.courses.readonly',
+      'https://www.googleapis.com/auth/classroom.coursework.me.readonly',
+      'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
+      'https://www.googleapis.com/auth/classroom.rosters.readonly',
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/classroom.announcements',
+    ],
+  });
+}
+getAuthUrlByTg(tgId: string) {
+  return this.getAuthUrl(tgId);
+}
+
+getAuthUrlByEmail(email: string) {
+  return this.getAuthUrl(email);
+}
+
+  /*getAuthUrlByEmail(email: string) {
     return this.oauth2Client.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent',
@@ -67,7 +94,7 @@ export class ClassroomService implements OnModuleInit {
         'https://www.googleapis.com/auth/classroom.announcements',
       ],
     });
-  }
+  }*/
 
   // ИСПРАВЛЕНИЕ 2: Метод для получения данных профиля
   async getGoogleProfile(tokens: any) {
@@ -271,7 +298,7 @@ export class ClassroomService implements OnModuleInit {
               photo: s.profile?.photoUrl
             })),
           };
-        } catch (error) {
+        } catch (error: any) {
           console.error(`Ошибка при получении данных курса ${course.id}:`, error.message);
           return { id: course.id, name: course.name, error: 'Ошибка доступа к участникам' };
         }

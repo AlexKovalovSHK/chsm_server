@@ -10,6 +10,7 @@ import {
   Logger,
   UseGuards,
   Res,
+  BadRequestException,
 } from '@nestjs/common';
 import { UserService } from '../application/user.service';
 import { UpdateUserDto } from '../application/dto/update-user.dto';
@@ -21,7 +22,6 @@ import type { JwtPayload } from '../../auth/decorators/current-user.decorator';
 import express from 'express';
 import { Public } from 'src/auth/decorators/public.decorator';
 
-
 @UseGuards(JwtAuthGuard)
 @Controller('api/users')
 export class UserController {
@@ -30,7 +30,7 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly classroomService: ClassroomService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     if (!process.env.GOOGLE_CLIENT_ID) {
@@ -45,20 +45,13 @@ export class UserController {
     return user;
   }
 
-    @Get('link-url') // ПЕРЕМЕСТИТЕ СЮДА
-  async getLinkUrl(@Query('email') email: string) {
-    const state = `email:${email}`;
-    const url = this.classroomService.getAuthUrl(state);
-    return { url };
-  }
-
   @Get()
   async findAll(
     @Query('search') search?: string,
     @Query('status') status?: string,
   ) {
     const users = await this.userService.findAll({ search, status });
-    return users.map(user => UserMapper.toResponseDto(user));
+    return users.map((user) => UserMapper.toResponseDto(user));
   }
 
   @Get('admins/stats')
@@ -78,7 +71,9 @@ export class UserController {
         grades,
       };
     } catch (error) {
-      this.logger.error(`Ошибка получения статистики курса ${courseId}: ${(error as Error).message}`);
+      this.logger.error(
+        `Ошибка получения статистики курса ${courseId}: ${(error as Error).message}`,
+      );
       throw error;
     }
   }
@@ -104,10 +99,7 @@ export class UserController {
   }
 
   @Patch(':id/role')
-  async changeRole(
-    @Param('id') id: string,
-    @Body('role') role: string,
-  ) {
+  async changeRole(@Param('id') id: string, @Body('role') role: string) {
     return this.userService.changeRole(id, role);
   }
 
@@ -116,22 +108,44 @@ export class UserController {
     return this.userService.softDelete(id);
   }
 
-  @Get('link')
-  async link(
-    @Res() res: express.Response,
-    @Query('tgId') tgId?: string,
-    @Query('email') email?: string,
-  ) {
-    let state = '';
-    if (tgId) {
-      state = `tg:${tgId}`;
-    } else if (email) {
-      state = `email:${email}`;
-    } else {
-      return res.status(400).send('Необходим tgId или email для привязки');
-    }
+ // В user.controller.ts
 
-    const url = this.classroomService.getAuthUrl(state);
-    return res.redirect(url);
+@Get('link-url')
+async getLinkUrl(@Query('email') email: string) {
+  // Формируем state вручную и передаем ОДНИМ аргументом
+  const state = `web:${email}`; 
+  const url = this.classroomService.getAuthUrl(state); // Теперь ошибок нет
+  return { url };
+}
+
+@Public() // Не забудьте сделать этот метод доступным для бота без JWT
+@Get('link')
+async link(
+  @Res() res: express.Response,
+  @Query('tgId') tgId?: string,
+  @Query('email') email?: string,
+) {
+  let state = '';
+  if (tgId) {
+    state = `tg:${tgId}`;
+  } else if (email) {
+    state = `web:${email}`;
+  } else {
+    throw new BadRequestException('Необходим tgId или email');
   }
+
+  // Передаем сформированную строку state
+  const url = this.classroomService.getAuthUrl(state); 
+  return res.redirect(url);
+}
+
+@Get('auth-link')
+async getAuthLink(@Query('tgId') tgId: string) {
+  if (!tgId) throw new BadRequestException('tgId is required');
+  
+  const state = `tg:${tgId}`;
+  const url = this.classroomService.getAuthUrl(state); // Передаем 1 аргумент
+
+  return { url };
+}
 }
