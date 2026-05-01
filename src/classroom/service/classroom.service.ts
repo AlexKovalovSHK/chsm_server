@@ -3,6 +3,8 @@ import { google, classroom_v1 } from 'googleapis';
 import { Course } from '../schemas/course.schema';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
+import { UserDocument } from 'src/users/infrastructure/user.document';
+import { GoogleAuth } from '../classroomAuth/google-auth.schema';
 
 @Injectable()
 export class ClassroomService implements OnModuleInit {
@@ -10,7 +12,9 @@ export class ClassroomService implements OnModuleInit {
 
   constructor(
     // ВНЕДРЯЕМ МОДЕЛЬ ТУТ:
+    @InjectModel(GoogleAuth.name) private readonly googleAuthModel: Model<GoogleAuth>,
     @InjectModel(Course.name) private courseModel: Model<Course>,
+    @InjectModel('User') private userModel: Model<UserDocument>,
   ) {
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
@@ -43,6 +47,23 @@ export class ClassroomService implements OnModuleInit {
         'https://www.googleapis.com/auth/classroom.rosters.readonly',
         'https://www.googleapis.com/auth/userinfo.email', // НУЖНО ДЛЯ EMAIL
         'https://www.googleapis.com/auth/userinfo.profile', // НУЖНО ДЛЯ ИМЕНИ/ФОТО
+        'https://www.googleapis.com/auth/classroom.announcements',
+      ],
+    });
+  }
+
+  getAuthUrlByEmail(email: string) {
+    return this.oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      state: email, // ПЕРЕДАЕМ EMAIL ДЛЯ СИНХРОНИЗАЦИИ
+      scope: [
+        'https://www.googleapis.com/auth/classroom.courses.readonly',
+        'https://www.googleapis.com/auth/classroom.coursework.me.readonly',
+        'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
+        'https://www.googleapis.com/auth/classroom.rosters.readonly',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile',
         'https://www.googleapis.com/auth/classroom.announcements',
       ],
     });
@@ -183,4 +204,104 @@ export class ClassroomService implements OnModuleInit {
     }
     return results;
   }
+
+  async saveGoogleTokens(state: string, email: string, tokens: any, profile: any) {
+    // Пробуем найти пользователя либо по tgId, либо по email
+    return this.userModel.findOneAndUpdate(
+      {
+        $or: [
+          { tgId: state },
+          { email: state.includes('@') ? state : email }
+        ]
+      },
+      {
+        $set: {
+          googleTokens: {
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            expiry_date: tokens.expiry_date,
+          },
+          email: email.toLowerCase(),
+          firstName: profile.given_name,
+          lastName: profile.family_name,
+          photoUrl: profile.picture,
+          googleId: profile.id,
+          isVerified: true
+        }
+      },
+      { upsert: true, new: true }
+    );
+  }
+
+  async getLiveFullState(tokens: any) {
+    const classroom = this.getClassroom(tokens);
+
+    // 1. Получаем список всех активных курсов
+    const coursesRes = await classroom.courses.list({
+      courseStates: ['ACTIVE'],
+    });
+    const courses = coursesRes.data.courses || [];
+
+    // 2. Для каждого курса собираем детальную информацию
+    // Используем Promise.all для ускорения (запросы идут параллельно)
+    const fullState = await Promise.all(
+      courses.map(async (course) => {
+        try {
+          // Запрашиваем студентов и учителей одновременно
+          const [studentsRes, teachersRes] = await Promise.all([
+            classroom.courses.students.list({ courseId: course.id! }),
+            classroom.courses.teachers.list({ courseId: course.id! }),
+          ]);
+
+          return {
+            id: course.id,
+            name: course.name,
+            section: course.section,
+            alternateLink: course.alternateLink,
+            teachers: (teachersRes.data.teachers || []).map(t => ({
+              id: t.userId,
+              name: t.profile?.name?.fullName,
+              email: t.profile?.emailAddress,
+              photo: t.profile?.photoUrl
+            })),
+            students: (studentsRes.data.students || []).map(s => ({
+              id: s.userId,
+              name: s.profile?.name?.fullName,
+              email: s.profile?.emailAddress,
+              photo: s.profile?.photoUrl
+            })),
+          };
+        } catch (error) {
+          console.error(`Ошибка при получении данных курса ${course.id}:`, error.message);
+          return { id: course.id, name: course.name, error: 'Ошибка доступа к участникам' };
+        }
+      }),
+    );
+
+    return {
+      fetchedAt: new Date(),
+      totalCourses: courses.length,
+      courses: fullState,
+    };
+  }
+
+    // Метод для сохранения системного токена
+  async saveAdminTokens(email: string, tokens: any) {
+    return this.googleAuthModel.findOneAndUpdate(
+      { email: email.toLowerCase() },
+      { 
+        tokens: tokens,
+        isActive: true 
+      },
+      { upsert: true, new: true }
+    );
+  }
+
+  // Метод для получения системного токена
+  async getAdminTokens() {
+    const auth = await this.googleAuthModel.findOne({ isActive: true }).exec();
+    if (!auth) throw new Error('Системный Google токен не найден');
+    return auth.tokens;
+  }
+
 }

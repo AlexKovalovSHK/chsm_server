@@ -75,4 +75,9 @@ export class MongooseUserRepository implements IUserRepository {
       .exec();
     return UserMapper.toDomain(doc);
   }
+
+  async findByGoogleId(googleId: string): Promise<User | null> {
+    const doc = await this.model.findOne({ googleId }).exec();
+    return doc ? UserMapper.toDomain(doc) : null;
+  }
 }

@@ -24,6 +24,9 @@ export class UserDocument extends Document {
   @Prop({ unique: true, sparse: true })
   tgId: string;
 
+  @Prop()
+  googleId: string;
+
   @Prop({ default: 'student' })
   role: string;
 

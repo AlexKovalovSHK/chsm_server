@@ -32,6 +32,7 @@ export class UserMapper {
       _sourceTg: doc._sourceTg,
       _mergedAt: doc._mergedAt,
       password: doc.password,
+      googleId: doc.googleId,
     });
   }
 
@@ -61,6 +62,7 @@ export class UserMapper {
       _sourceTg: user._sourceTg,
       _mergedAt: user._mergedAt,
       password: user.password,
+      googleId: user.googleId,
     };
   }
 }

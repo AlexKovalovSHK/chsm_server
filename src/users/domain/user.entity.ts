@@ -32,6 +32,7 @@ export interface UserProps {
   _sourceTg?: string;
   _mergedAt?: Date;
   password?: string;
+  googleId?: string;
 }
 
 export class User {
@@ -87,11 +88,13 @@ export class User {
   get _sourceTg(): string | undefined { return this.props._sourceTg; }
   get _mergedAt(): Date | undefined { return this.props._mergedAt; }
   get password(): string | undefined { return this.props.password; }
+  get googleId(): string | undefined { return this.props.googleId; }
 
   // Business Methods
   linkGoogle(email: string, tokens: any, profile?: any) {
     this.props.email = email;
     this.props.googleTokens = tokens;
+    if (profile?.id) this.props.googleId = profile.id;
     if (profile?.picture) this.props.photoUrl = profile.picture;
     if (profile?.given_name) this.props.firstName = profile.given_name;
     if (profile?.family_name) this.props.lastName = profile.family_name;
@@ -157,6 +160,7 @@ export class User {
       _sourceUser: this.props._sourceUser,
       _sourceTg: this.props._sourceTg,
       _mergedAt: this.props._mergedAt,
+      googleId: this.props.googleId,
     };
   }
 }

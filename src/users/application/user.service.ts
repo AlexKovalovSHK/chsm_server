@@ -27,6 +27,10 @@ export class UserService {
     return this.repo.findByEmail(email);
   }
 
+  async findByGoogleId(googleId: string) {
+    return this.repo.findByGoogleId(googleId);
+  }
+
   async update(id: string, updateData: any) {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Пользователь не найден');
