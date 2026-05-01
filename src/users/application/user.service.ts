@@ -1,9 +1,11 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { User } from '../domain/user.entity';
 import { UserRole } from '../domain/value-objects/user-role.vo';
+import { UserStatus } from '../domain/value-objects/user-status.vo';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { NewUserDto } from './dto/new-user.dto';
 import * as userRepositoryInterface from '../domain/user.repository.interface';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
@@ -142,10 +144,20 @@ export class UserService {
   }
 
   async create(dto: NewUserDto) {
+    let passwordHash = '';
+    if (dto.email) {
+      passwordHash = await bcrypt.hash(dto.email, 10);
+    }
+
     const user = User.create({
       firstName: dto.firstName || 'New',
       lastName: dto.lastName || 'User',
       email: dto.email,
+      tgId: dto.tgId,
+      username: dto.username,
+      registrationStep: dto.registrationStep,
+      status: dto.status ? UserStatus.fromString(dto.status) : UserStatus.ACTIVE,
+      password: passwordHash,
     });
     return this.repo.save(user);
   }
