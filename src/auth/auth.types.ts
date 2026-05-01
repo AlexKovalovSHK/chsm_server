@@ -1,9 +1,6 @@
+import { UserResponseDto } from '../users/application/dto/user-response.dto';
+
 export interface LoginResult {
   accessToken: string;
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    role: string;
-  };
+  user: UserResponseDto;
 }

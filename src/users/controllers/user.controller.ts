@@ -11,6 +11,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { UserService } from '../application/user.service';
+import { UpdateUserDto } from '../application/dto/update-user.dto';
+import { UserMapper } from '../infrastructure/user.mapper';
 import { ClassroomService } from '../../classroom/service/classroom.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
@@ -44,7 +46,8 @@ export class UserController {
     @Query('search') search?: string,
     @Query('status') status?: string,
   ) {
-    return this.userService.findAll({ search, status });
+    const users = await this.userService.findAll({ search, status });
+    return users.map(user => UserMapper.toResponseDto(user));
   }
 
   @Get('admins/stats')
@@ -71,12 +74,14 @@ export class UserController {
 
   @Get(':id')
   async findOne(@Param('id') id: string) {
-    return this.userService.findById(id);
+    const user = await this.userService.findById(id);
+    return UserMapper.toResponseDto(user);
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateData: any) {
-    return this.userService.update(id, updateData);
+  async update(@Param('id') id: string, @Body() updateData: UpdateUserDto) {
+    const updatedUser = await this.userService.update(id, updateData);
+    return UserMapper.toResponseDto(updatedUser);
   }
 
   @Post(':tgId/add-xp')

@@ -1,6 +1,7 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { User } from '../domain/user.entity';
 import { UserRole } from '../domain/value-objects/user-role.vo';
+import { UpdateUserDto } from './dto/update-user.dto';
 import * as userRepositoryInterface from '../domain/user.repository.interface';
 
 @Injectable()
@@ -31,10 +32,10 @@ export class UserService {
     return this.repo.findByGoogleId(googleId);
   }
 
-  async update(id: string, updateData: any) {
+  async update(id: string, updateData: UpdateUserDto) {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Пользователь не найден');
-    user.patch(updateData);
+    user.updateDetails(updateData);
     return this.repo.save(user);
   }
 

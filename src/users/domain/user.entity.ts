@@ -126,12 +126,15 @@ export class User {
     this.props.lastName = lastName;
   }
 
-  changeRole(role: UserRole) {
-    this.props.role = role;
+  updateDetails(props: Partial<Omit<UserProps, 'id' | 'role' | 'status' | 'xp' | 'level'>> & { status?: string, role?: string }) {
+    const { status, role, ...other } = props;
+    if (status) this.props.status = UserStatus.fromString(status);
+    if (role) this.props.role = UserRole.fromString(role);
+    Object.assign(this.props, other);
   }
 
-  patch(data: Partial<UserProps>) {
-    Object.assign(this.props, data);
+  changeRole(role: UserRole) {
+    this.props.role = role;
   }
 
   toJSON() {

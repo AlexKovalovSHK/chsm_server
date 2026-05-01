@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UserService } from '../users/application/user.service';
+import { UserMapper } from '../users/infrastructure/user.mapper';
 import { LoginResult } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 
@@ -45,12 +46,7 @@ export class AuthService {
 
     return {
       accessToken,
-      user: {
-        id: user.id.toString(),
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role.toString(),
-      },
+      user: UserMapper.toResponseDto(user),
     };
   }
 }

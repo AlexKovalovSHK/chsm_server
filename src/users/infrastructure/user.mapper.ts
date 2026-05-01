@@ -3,6 +3,7 @@ import { UserDocument } from './user.document';
 import { UserID } from '../domain/value-objects/user-id.vo';
 import { UserStatus } from '../domain/value-objects/user-status.vo';
 import { UserRole } from '../domain/value-objects/user-role.vo';
+import { UserResponseDto } from '../application/dto/user-response.dto';
 
 export class UserMapper {
   static toDomain(doc: UserDocument): User {
@@ -63,6 +64,28 @@ export class UserMapper {
       _mergedAt: user._mergedAt,
       password: user.password,
       googleId: user.googleId,
+    };
+  }
+
+  static toResponseDto(user: User): UserResponseDto {
+    return {
+      id: user.id.toString(),
+      firstName: user.firstName,
+      lastName: user.lastName,
+      username: user.username,
+      tel: user.tel,
+      photoUrl: user.photoUrl,
+      email: user.email,
+      tgId: user.tgId,
+      role: user.role.toString(),
+      status: user.status.toString(),
+      googleId: user.googleId,
+      xp: user.xp,
+      level: user.level,
+      registrationStep: user.registrationStep,
+      isVerified: user.isVerified,
+      isPremium: user.isPremium,
+      metadata: user.metadata,
     };
   }
 }
