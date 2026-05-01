@@ -98,6 +98,7 @@ export class User {
     if (profile?.picture) this.props.photoUrl = profile.picture;
     if (profile?.given_name) this.props.firstName = profile.given_name;
     if (profile?.family_name) this.props.lastName = profile.family_name;
+    this.props.isVerified = true;
     this.props.status = UserStatus.ACTIVE;
   }
 

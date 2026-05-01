@@ -68,25 +68,43 @@ export class UserService {
     return this.repo.save(user);
   }
 
-  async saveGoogleTokens(
-    tgId: string,
-    email: string,
-    tokens: any,
-    profile?: any,
-  ) {
-    let user = await this.repo.findByTgId(tgId);
-    
-    if (!user) {
-      user = User.create({
-        firstName: profile?.given_name || '',
-        lastName: profile?.family_name || '',
-        tgId,
-      });
-    }
+ async saveGoogleTokens(state: string, googleEmail: string, tokens: any, profile: any) {
+  let user: User | null = null;
 
-    user.linkGoogle(email, tokens, profile);
-    return this.repo.save(user);
+  // 1. Пытаемся найти пользователя по state (tgId или email)
+  if (state.startsWith('tg:')) {
+    const tgId = state.split(':')[1];
+    user = await this.repo.findByTgId(tgId);
+  } else if (state.startsWith('email:')) {
+    const email = state.split(':')[1];
+    user = await this.repo.findByEmail(email.toLowerCase());
   }
+
+  // 2. Если по state не нашли, пробуем найти по почте, которую вернул сам Google
+  if (!user) {
+    user = await this.repo.findByEmail(googleEmail.toLowerCase());
+  }
+
+  // 3. Если пользователь найден — обновляем его через доменный метод
+  if (user) {
+    user.linkGoogle(googleEmail.toLowerCase(), tokens, profile);
+    // Метод linkGoogle внутри сущности сам обновит googleId, email и токены
+    return this.repo.save(user);
+  } 
+  
+  // 4. Опционально: Если пользователя нет, можно создать нового (Login with Google)
+  const newUser = User.create({
+    firstName: profile.given_name || 'Google User',
+    lastName: profile.family_name || '',
+    email: googleEmail.toLowerCase(),
+    googleId: profile.id,
+    googleTokens: tokens,
+    photoUrl: profile.picture,
+    isVerified: true,
+  });
+
+  return this.repo.save(newUser);
+}
 
   async addXp(tgId: string, amount: number) {
     const user = await this.repo.findByTgId(tgId);
@@ -119,4 +137,5 @@ export class UserService {
   async findAllForSync() {
     return this.repo.findAllWithGoogle();
   }
+
 }
