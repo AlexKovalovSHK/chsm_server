@@ -62,19 +62,56 @@ export class TgInternalController {
 
     @Post('broadcast')
     async broadcast(
-      @Body() dto: { users: string[]; text: string }
+        @Body() dto: { users: string[]; text: string }
     ) {
-      const results = { sent: 0, failed: 0 };
-  
-      for (const tgId of dto.users) {
-        try {
-          await this.botApiService.sendMessage(tgId, dto.text);
-          results.sent++;
-        } catch (e) {
-          results.failed++;
+        const results = { sent: 0, failed: 0 };
+
+        for (const tgId of dto.users) {
+            try {
+                await this.botApiService.sendMessage(tgId, dto.text);
+                results.sent++;
+            } catch (e) {
+                results.failed++;
+            }
         }
-      }
-  
-      return { success: true, results };
+
+        return { success: true, results };
+    }
+
+    @Post('broadcast-extension')
+    async broadcastExtension(
+        @Body() dto: { users: string[]; text: string }
+    ) {
+        const results = {
+            sent: 0,
+            failed: 0,
+            missingUsers: [] as string[],
+            missingTgIds: [] as string[],
+        };
+
+        for (const email of dto.users) {
+            try {
+                const user = await this.userService.findByEmail(email.toLowerCase().trim());
+
+                if (!user) {
+                    results.missingUsers.push(email);
+                    results.failed++;
+                    continue;
+                }
+
+                if (!user.tgId) {
+                    results.missingTgIds.push(email);
+                    results.failed++;
+                    continue;
+                }
+
+                await this.botApiService.sendMessage(user.tgId, dto.text);
+                results.sent++;
+            } catch (e) {
+                results.failed++;
+            }
+        }
+
+        return { success: true, results };
     }
 }

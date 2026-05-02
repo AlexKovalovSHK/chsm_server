@@ -68,6 +68,7 @@ getAuthUrl(state: string) {
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/userinfo.profile',
       'https://www.googleapis.com/auth/classroom.announcements',
+      'https://www.googleapis.com/auth/classroom.profile.emails'
     ],
   });
 }
