@@ -1,4 +1,5 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { User } from '../domain/user.entity';
 import { UserRole } from '../domain/value-objects/user-role.vo';
 import { UserStatus } from '../domain/value-objects/user-status.vo';
@@ -168,6 +169,26 @@ export class UserService {
       status: dto.status ? UserStatus.fromString(dto.status) : UserStatus.ACTIVE,
       password: passwordHash,
     });
+    return this.repo.save(user);
+  }
+
+  async changePassword(dto: ChangePasswordDto) {
+    const user = await this.repo.findById(dto.userId);
+    if (!user) throw new NotFoundException('Пользователь не найден');
+
+    if (!user.password) {
+      throw new BadRequestException('У пользователя не установлен пароль (возможно, вход через Google)');
+    }
+
+    const isPasswordValid = await bcrypt.compare(dto.oldPassword, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Неверный текущий пароль');
+    }
+
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(dto.newPassword, saltRounds);
+    user.setPassword(passwordHash);
+
     return this.repo.save(user);
   }
 

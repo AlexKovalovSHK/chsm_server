@@ -138,6 +138,10 @@ export class User {
     this.props.role = role;
   }
 
+  setPassword(passwordHash: string) {
+    this.props.password = passwordHash;
+  }
+
   toJSON() {
     return {
       id: this.props.id.toString(),

@@ -15,6 +15,7 @@ import {
 import { UserService } from '../application/user.service';
 import { UpdateUserDto } from '../application/dto/update-user.dto';
 import { NewUserDto } from '../application/dto/new-user.dto';
+import { ChangePasswordDto } from '../application/dto/change-password.dto';
 import { UserMapper } from '../infrastructure/user.mapper';
 import { ClassroomService } from '../../classroom/service/classroom.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -22,6 +23,7 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/decorators/current-user.decorator';
 import express from 'express';
 import { Public } from 'src/auth/decorators/public.decorator';
+import * as jwtPayloadInterface from 'src/auth/interfaces/jwt-payload.interface';
 
 
 @Controller('api/users')
@@ -140,6 +142,15 @@ export class UserController {
   async update(@Param('id') id: string, @Body() updateData: UpdateUserDto) {
     const updatedUser = await this.userService.update(id, updateData);
     return UserMapper.toResponseDto(updatedUser);
+  }
+
+  @Patch('me/password')
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    await this.userService.changePassword(changePasswordDto);
+    return { message: 'Пароль успешно изменен' };
   }
 
   @Post(':tgId/add-xp')
