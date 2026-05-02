@@ -10,7 +10,7 @@ import { UserMapper } from './user.mapper';
 export class MongooseUserRepository implements IUserRepository {
   constructor(
     @InjectModel(UserDocument.name) private readonly model: Model<UserDocument>,
-  ) {}
+  ) { }
 
   async findById(id: string): Promise<User | null> {
     const doc = await this.model.findById(id).exec();
@@ -42,6 +42,10 @@ export class MongooseUserRepository implements IUserRepository {
       query.status = filter.status;
     } else {
       query.status = { $ne: 'archived' };
+    }
+
+    if (filter.role) {
+      query.role = filter.role;
     }
 
     const docs = await this.model.find(query).sort({ createdAt: -1 }).exec();

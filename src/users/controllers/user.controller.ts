@@ -54,8 +54,9 @@ export class UserController {
   async findAll(
     @Query('search') search?: string,
     @Query('status') status?: string,
+    @Query('role') role?: string,
   ) {
-    const users = await this.userService.findAll({ search, status });
+    const users = await this.userService.findAll({ search, status, role });
     return users.map((user) => UserMapper.toResponseDto(user));
   }
 

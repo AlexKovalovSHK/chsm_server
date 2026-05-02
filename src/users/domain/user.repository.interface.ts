@@ -3,6 +3,7 @@ import { User } from './user.entity';
 export interface UserFilter {
   search?: string;
   status?: string;
+  role?: string;
 }
 
 export interface IUserRepository {

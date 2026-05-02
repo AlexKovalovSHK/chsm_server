@@ -13,6 +13,7 @@ import { UserService } from '../../users/application/user.service';
 import { TgInternalService } from '../service/tg-internal.service';
 import { BotApiService } from '../service/bot-api.service';
 import { NewUserTgDto } from 'src/users/application/dto/new-user-tg.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller('internal/users')
 export class TgInternalController {
@@ -54,9 +55,26 @@ export class TgInternalController {
     }
 
     @Post('send-message')
-    // @UseGuards(JwtAuthGuard, RolesGuard) // ОБЯЗАТЕЛЬНО: только для админов
+    @UseGuards(JwtAuthGuard)
     async sendMessageToUser(@Body() dto: { tgId: string; text: string }) {
         return await this.botApiService.sendMessage(dto.tgId, dto.text);
     }
 
+    @Post('broadcast')
+    async broadcast(
+      @Body() dto: { users: string[]; text: string }
+    ) {
+      const results = { sent: 0, failed: 0 };
+  
+      for (const tgId of dto.users) {
+        try {
+          await this.botApiService.sendMessage(tgId, dto.text);
+          results.sent++;
+        } catch (e) {
+          results.failed++;
+        }
+      }
+  
+      return { success: true, results };
+    }
 }
