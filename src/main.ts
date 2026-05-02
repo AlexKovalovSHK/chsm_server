@@ -20,7 +20,7 @@ async function bootstrap() {
 
   // Настройка Swagger
   const config = new DocumentBuilder()
-    .setTitle('Heizreport SHK_info')
+    .setTitle('CHSM Classroom Integrations')
     .setDescription('Docs REST API')
     .setVersion('1.0.0')
     .addTag('ALEX K')
@@ -42,10 +42,14 @@ async function bootstrap() {
         "http://localhost:5174",
         "http://localhost:3000",
         "http://localhost:3001",
-        "http://localhost:5008", // Добавляем сам сервер для Swagger/Docs
+        "http://localhost:5008",
       ];
 
-      if (allowedOrigins.includes(origin) || origin.startsWith('http://localhost:')) {
+      const isAllowed = allowedOrigins.includes(origin) ||
+        origin.startsWith('http://localhost:') ||
+        origin.startsWith('chrome-extension://');
+
+      if (isAllowed) {
         callback(null, true);
       } else {
         callback(new Error(`Origin '${origin}' not allowed by CORS`));
