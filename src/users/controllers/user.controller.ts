@@ -100,6 +100,12 @@ export class UserController {
     return { url };
   }
 
+  // В UserController
+@Patch('sync')
+async sync(@Body() data: any) {
+  return this.userService.syncTelegramUser(data);
+}
+
   @Get('admins/stats')
   @UseGuards(JwtAuthGuard)
   async getCourseStats(@Query('courseId') courseId: string) {

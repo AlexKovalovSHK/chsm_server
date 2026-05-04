@@ -1,4 +1,10 @@
-import { Injectable, Inject, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { User } from '../domain/user.entity';
 import { UserRole } from '../domain/value-objects/user-role.vo';
@@ -11,7 +17,8 @@ import * as bcrypt from 'bcrypt';
 @Injectable()
 export class UserService {
   constructor(
-    @Inject('IUserRepository') private readonly repo: userRepositoryInterface.IUserRepository,
+    @Inject('IUserRepository')
+    private readonly repo: userRepositoryInterface.IUserRepository,
   ) {}
 
   async findAll(filters: userRepositoryInterface.UserFilter) {
@@ -67,7 +74,7 @@ export class UserService {
     last_name?: string;
   }) {
     let user = await this.repo.findByTgId(tgUser.id.toString());
-    
+
     if (user) {
       user.updateProfile(tgUser.first_name, tgUser.last_name || '');
       user.activate();
@@ -82,43 +89,48 @@ export class UserService {
     return this.repo.save(user);
   }
 
- async saveGoogleTokens(state: string, googleEmail: string, tokens: any, profile: any) {
-  let user: User | null = null;
+  async saveGoogleTokens(
+    state: string,
+    googleEmail: string,
+    tokens: any,
+    profile: any,
+  ) {
+    let user: User | null = null;
 
-  // 1. Пытаемся найти пользователя по state (tgId или email)
-  if (state.startsWith('tg:')) {
-    const tgId = state.split(':')[1];
-    user = await this.repo.findByTgId(tgId);
-  } else if (state.startsWith('email:')) {
-    const email = state.split(':')[1];
-    user = await this.repo.findByEmail(email.toLowerCase());
+    // 1. Пытаемся найти пользователя по state (tgId или email)
+    if (state.startsWith('tg:')) {
+      const tgId = state.split(':')[1];
+      user = await this.repo.findByTgId(tgId);
+    } else if (state.startsWith('email:')) {
+      const email = state.split(':')[1];
+      user = await this.repo.findByEmail(email.toLowerCase());
+    }
+
+    // 2. Если по state не нашли, пробуем найти по почте, которую вернул сам Google
+    if (!user) {
+      user = await this.repo.findByEmail(googleEmail.toLowerCase());
+    }
+
+    // 3. Если пользователь найден — обновляем его через доменный метод
+    if (user) {
+      user.linkGoogle(googleEmail.toLowerCase(), tokens, profile);
+      // Метод linkGoogle внутри сущности сам обновит googleId, email и токены
+      return this.repo.save(user);
+    }
+
+    // 4. Опционально: Если пользователя нет, можно создать нового (Login with Google)
+    const newUser = User.create({
+      firstName: profile.given_name || 'Google User',
+      lastName: profile.family_name || '',
+      email: googleEmail.toLowerCase(),
+      googleId: profile.id,
+      googleTokens: tokens,
+      photoUrl: profile.picture,
+      isVerified: true,
+    });
+
+    return this.repo.save(newUser);
   }
-
-  // 2. Если по state не нашли, пробуем найти по почте, которую вернул сам Google
-  if (!user) {
-    user = await this.repo.findByEmail(googleEmail.toLowerCase());
-  }
-
-  // 3. Если пользователь найден — обновляем его через доменный метод
-  if (user) {
-    user.linkGoogle(googleEmail.toLowerCase(), tokens, profile);
-    // Метод linkGoogle внутри сущности сам обновит googleId, email и токены
-    return this.repo.save(user);
-  } 
-  
-  // 4. Опционально: Если пользователя нет, можно создать нового (Login with Google)
-  const newUser = User.create({
-    firstName: profile.given_name || 'Google User',
-    lastName: profile.family_name || '',
-    email: googleEmail.toLowerCase(),
-    googleId: profile.id,
-    googleTokens: tokens,
-    photoUrl: profile.picture,
-    isVerified: true,
-  });
-
-  return this.repo.save(newUser);
-}
 
   async addXp(tgId: string, amount: number) {
     const user = await this.repo.findByTgId(tgId);
@@ -133,7 +145,7 @@ export class UserService {
   async softDelete(id: string) {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Пользователь не найден');
-    
+
     user.archive();
     return this.repo.save(user);
   }
@@ -166,10 +178,63 @@ export class UserService {
       tgId: dto.tgId,
       username: dto.username,
       registrationStep: dto.registrationStep,
-      status: dto.status ? UserStatus.fromString(dto.status) : UserStatus.ACTIVE,
+      status: dto.status
+        ? UserStatus.fromString(dto.status)
+        : UserStatus.ACTIVE,
       password: passwordHash,
     });
     return this.repo.save(user);
+  }
+
+  // В UserService
+  // ... внутри UserService
+
+  async syncTelegramUser(dto: any) {
+    const { tgId, email, registrationStep, firstName, lastName, username } =
+      dto;
+
+    const currentUser = await this.repo.findByTgId(tgId);
+
+    if (email) {
+      const existingUserByEmail = await this.repo.findByEmail(
+        email.toLowerCase().trim(),
+      );
+
+      if (existingUserByEmail) {
+        // КЕЙС: Пользователь с таким Email уже есть
+
+        // Сравниваем ID. Так как id — это Value Object, используем .toString() или .value
+        if (
+          !currentUser ||
+          existingUserByEmail.id.toString() !== currentUser.id.toString()
+        ) {
+          existingUserByEmail.updateDetails({
+            tgId: tgId,
+            username: username || existingUserByEmail.username,
+            firstName: firstName || existingUserByEmail.firstName,
+            lastName: lastName || existingUserByEmail.lastName,
+            registrationStep: 'completed',
+          });
+
+          existingUserByEmail.activate();
+
+          // Удаляем временного пользователя
+          if (currentUser) {
+            // ИСПРАВЛЕНО: передаем строку, а не объект UserID
+            await this.repo.delete(currentUser.id.toString());
+          }
+
+          return this.repo.save(existingUserByEmail);
+        }
+      }
+    }
+
+    if (currentUser) {
+      currentUser.updateDetails(dto);
+      return this.repo.save(currentUser);
+    } else {
+      return this.create(dto);
+    }
   }
 
   async changePassword(dto: ChangePasswordDto) {
@@ -177,10 +242,15 @@ export class UserService {
     if (!user) throw new NotFoundException('Пользователь не найден');
 
     if (!user.password) {
-      throw new BadRequestException('У пользователя не установлен пароль (возможно, вход через Google)');
+      throw new BadRequestException(
+        'У пользователя не установлен пароль (возможно, вход через Google)',
+      );
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.oldPassword, user.password);
+    const isPasswordValid = await bcrypt.compare(
+      dto.oldPassword,
+      user.password,
+    );
     if (!isPasswordValid) {
       throw new UnauthorizedException('Неверный текущий пароль');
     }
@@ -195,5 +265,4 @@ export class UserService {
   async delete(id: string) {
     await this.repo.delete(id);
   }
-
 }

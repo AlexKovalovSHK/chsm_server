@@ -38,7 +38,23 @@ export interface UserProps {
 export class User {
   private constructor(private props: UserProps) {}
 
-  static create(props: Omit<UserProps, 'id' | 'status' | 'role' | 'xp' | 'level' | 'courses' | 'lastSeenTaskIds' | 'registrationStep' | 'isVerified' | 'isPremium' | 'metadata'> & Partial<UserProps>): User {
+  static create(
+    props: Omit<
+      UserProps,
+      | 'id'
+      | 'status'
+      | 'role'
+      | 'xp'
+      | 'level'
+      | 'courses'
+      | 'lastSeenTaskIds'
+      | 'registrationStep'
+      | 'isVerified'
+      | 'isPremium'
+      | 'metadata'
+    > &
+      Partial<UserProps>,
+  ): User {
     const id = props.id ?? UserID.generate();
     return new User({
       ...props,
@@ -63,32 +79,84 @@ export class User {
   }
 
   // Getters
-  get id(): UserID { return this.props.id; }
-  get firstName(): string { return this.props.firstName; }
-  get lastName(): string { return this.props.lastName; }
-  get username(): string | undefined { return this.props.username; }
-  get tel(): string | undefined { return this.props.tel; }
-  get photoUrl(): string | undefined { return this.props.photoUrl; }
-  get email(): string | undefined { return this.props.email; }
-  get tgId(): string | undefined { return this.props.tgId; }
-  get role(): UserRole { return this.props.role; }
-  get status(): UserStatus { return this.props.status; }
-  get courses(): string[] { return this.props.courses; }
-  get lastSeenTaskIds(): string[] { return this.props.lastSeenTaskIds; }
-  get xp(): number { return this.props.xp; }
-  get level(): number { return this.props.level; }
-  get googleTokens() { return this.props.googleTokens; }
-  get languageCode(): string | undefined { return this.props.languageCode; }
-  get registrationStep(): string { return this.props.registrationStep; }
-  get isVerified(): boolean { return this.props.isVerified; }
-  get isPremium(): boolean { return this.props.isPremium; }
-  get platformId(): string | undefined { return this.props.platformId; }
-  get metadata(): Record<string, unknown> { return this.props.metadata; }
-  get _sourceUser(): string | undefined { return this.props._sourceUser; }
-  get _sourceTg(): string | undefined { return this.props._sourceTg; }
-  get _mergedAt(): Date | undefined { return this.props._mergedAt; }
-  get password(): string | undefined { return this.props.password; }
-  get googleId(): string | undefined { return this.props.googleId; }
+  get id(): UserID {
+    return this.props.id;
+  }
+  get firstName(): string {
+    return this.props.firstName;
+  }
+  get lastName(): string {
+    return this.props.lastName;
+  }
+  get username(): string | undefined {
+    return this.props.username;
+  }
+  get tel(): string | undefined {
+    return this.props.tel;
+  }
+  get photoUrl(): string | undefined {
+    return this.props.photoUrl;
+  }
+  get email(): string | undefined {
+    return this.props.email;
+  }
+  get tgId(): string | undefined {
+    return this.props.tgId;
+  }
+  get role(): UserRole {
+    return this.props.role;
+  }
+  get status(): UserStatus {
+    return this.props.status;
+  }
+  get courses(): string[] {
+    return this.props.courses;
+  }
+  get lastSeenTaskIds(): string[] {
+    return this.props.lastSeenTaskIds;
+  }
+  get xp(): number {
+    return this.props.xp;
+  }
+  get level(): number {
+    return this.props.level;
+  }
+  get googleTokens() {
+    return this.props.googleTokens;
+  }
+  get languageCode(): string | undefined {
+    return this.props.languageCode;
+  }
+  get registrationStep(): string {
+    return this.props.registrationStep;
+  }
+  get isVerified(): boolean {
+    return this.props.isVerified;
+  }
+  get isPremium(): boolean {
+    return this.props.isPremium;
+  }
+  get platformId(): string | undefined {
+    return this.props.platformId;
+  }
+  get metadata(): Record<string, unknown> {
+    return this.props.metadata;
+  }
+  get _sourceUser(): string | undefined {
+    return this.props._sourceUser;
+  }
+  get _sourceTg(): string | undefined {
+    return this.props._sourceTg;
+  }
+  get _mergedAt(): Date | undefined {
+    return this.props._mergedAt;
+  }
+  get password(): string | undefined {
+    return this.props.password;
+  }
+  get googleId(): string | undefined {
+    return this.props.googleId;
+  }
 
   // Business Methods
   linkGoogle(email: string, tokens: any, profile?: any) {
@@ -102,11 +170,15 @@ export class User {
     this.props.status = UserStatus.ACTIVE;
   }
 
-  addXp(amount: number): { newXp: number; newLevel: number; isLevelUp: boolean } {
+  addXp(amount: number): {
+    newXp: number;
+    newLevel: number;
+    isLevelUp: boolean;
+  } {
     const oldLevel = this.props.level;
     this.props.xp += amount;
     this.props.level = Math.floor(this.props.xp / 100) + 1;
-    
+
     return {
       newXp: this.props.xp,
       newLevel: this.props.level,
@@ -127,10 +199,16 @@ export class User {
     this.props.lastName = lastName;
   }
 
-  updateDetails(props: Partial<Omit<UserProps, 'id' | 'role' | 'status' | 'xp' | 'level'>> & { status?: string, role?: string }) {
+  updateDetails(
+    props: Partial<
+      Omit<UserProps, 'id' | 'role' | 'status' | 'xp' | 'level'>
+    > & { status?: string; role?: string },
+  ) {
     const { status, role, ...other } = props;
+
     if (status) this.props.status = UserStatus.fromString(status);
     if (role) this.props.role = UserRole.fromString(role);
+
     Object.assign(this.props, other);
   }
 
