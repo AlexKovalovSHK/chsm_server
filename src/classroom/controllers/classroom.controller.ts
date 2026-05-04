@@ -99,16 +99,16 @@ export class ClassroomController {
     );
   }
 
- // 1. Получить полный отчет по всей школе (Live Data из Google)
+  // 1. Получить полный отчет по всей школе (Live Data из Google)
   @Get('admin/live-report')
   async getLiveReport() {
     try {
       // Платформа сама берет системный токен админа
       const adminTokens = await this.classroomService.getAdminTokens();
-      
+
       // Запрашиваем данные напрямую из Google
       const report = await this.classroomService.getLiveFullState(adminTokens);
-      
+
       return report;
     } catch (error: any) {
       return { error: error.message };
@@ -135,6 +135,44 @@ export class ClassroomController {
     } catch (error: any) {
       return { error: error.message };
     }
+  }
+
+  // рассылка на gmail
+  @Post('broadcast-email')
+  async broadcastEmail(
+    @Body() dto: { users: string[]; subject?: string; text: string }
+  ) {
+    const results = {
+      sent: 0,
+      failed: 0,
+      errors: [] as { email: string; error: string }[],
+    };
+
+    // Заголовок письма по умолчанию, если не передан
+    const subject = dto.subject || 'Уведомление от Classroom Bot';
+
+    for (const email of dto.users) {
+      const cleanEmail = email.toLowerCase().trim();
+
+      try {
+        // Вызываем метод сервиса
+        await this.classroomService.sendEmail(
+          cleanEmail,
+          subject,
+          dto.text
+        );
+
+        results.sent++;
+      } catch (e: any) {
+        results.failed++;
+        results.errors.push({
+          email: cleanEmail,
+          error: e.message
+        });
+      }
+    }
+
+    return { success: true, results };
   }
 
 }

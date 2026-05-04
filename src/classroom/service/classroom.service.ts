@@ -34,57 +34,11 @@ export class ClassroomService implements OnModuleInit {
     return google.classroom({ version: 'v1', auth: this.oauth2Client });
   }
 
-  // ИСПРАВЛЕНИЕ 1: Теперь принимает tgId и передает его в state
-  /*getAuthUrl(tgId: string) {
+  getAuthUrl(state: string) {
     return this.oauth2Client.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent',
-      state: tgId, // ПЕРЕДАЕМ TG_ID ДЛЯ СИНХРОНИЗАЦИИ
-      scope: [
-        'https://www.googleapis.com/auth/classroom.courses.readonly',
-        'https://www.googleapis.com/auth/classroom.coursework.me.readonly',
-        'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
-        'https://www.googleapis.com/auth/classroom.rosters.readonly',
-        'https://www.googleapis.com/auth/userinfo.email', // НУЖНО ДЛЯ EMAIL
-        'https://www.googleapis.com/auth/userinfo.profile', // НУЖНО ДЛЯ ИМЕНИ/ФОТО
-        'https://www.googleapis.com/auth/classroom.announcements',
-      ],
-    });
-  };*/
-
-// В classroom.service.ts
-
-// Оставляем только ОДИН аргумент - state
-getAuthUrl(state: string) {
-  return this.oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    prompt: 'consent',
-    state: state, // Google просто вернет эту строку обратно в callback
-    scope: [
-      'https://www.googleapis.com/auth/classroom.courses.readonly',
-      'https://www.googleapis.com/auth/classroom.coursework.me.readonly',
-      'https://www.googleapis.com/auth/classroom.coursework.students.readonly',
-      'https://www.googleapis.com/auth/classroom.rosters.readonly',
-      'https://www.googleapis.com/auth/userinfo.email',
-      'https://www.googleapis.com/auth/userinfo.profile',
-      'https://www.googleapis.com/auth/classroom.announcements',
-      'https://www.googleapis.com/auth/classroom.profile.emails'
-    ],
-  });
-}
-getAuthUrlByTg(tgId: string) {
-  return this.getAuthUrl(tgId);
-}
-
-getAuthUrlByEmail(email: string) {
-  return this.getAuthUrl(email);
-}
-
-  /*getAuthUrlByEmail(email: string) {
-    return this.oauth2Client.generateAuthUrl({
-      access_type: 'offline',
-      prompt: 'consent',
-      state: email, // ПЕРЕДАЕМ EMAIL ДЛЯ СИНХРОНИЗАЦИИ
+      state: state,
       scope: [
         'https://www.googleapis.com/auth/classroom.courses.readonly',
         'https://www.googleapis.com/auth/classroom.coursework.me.readonly',
@@ -93,11 +47,19 @@ getAuthUrlByEmail(email: string) {
         'https://www.googleapis.com/auth/userinfo.email',
         'https://www.googleapis.com/auth/userinfo.profile',
         'https://www.googleapis.com/auth/classroom.announcements',
+        'https://www.googleapis.com/auth/classroom.profile.emails',
+        'https://www.googleapis.com/auth/gmail.send',
       ],
     });
-  }*/
+  }
+  getAuthUrlByTg(tgId: string) {
+    return this.getAuthUrl(tgId);
+  }
 
-  // ИСПРАВЛЕНИЕ 2: Метод для получения данных профиля
+  getAuthUrlByEmail(email: string) {
+    return this.getAuthUrl(email);
+  }
+
   async getGoogleProfile(tokens: any) {
     this.oauth2Client.setCredentials(tokens);
     // Используем oauth2 API вместо classroom
@@ -313,13 +275,13 @@ getAuthUrlByEmail(email: string) {
     };
   }
 
-    // Метод для сохранения системного токена
+  // Метод для сохранения системного токена
   async saveAdminTokens(email: string, tokens: any) {
     return this.googleAuthModel.findOneAndUpdate(
       { email: email.toLowerCase() },
-      { 
+      {
         tokens: tokens,
-        isActive: true 
+        isActive: true
       },
       { upsert: true, new: true }
     );
@@ -331,5 +293,40 @@ getAuthUrlByEmail(email: string) {
     if (!auth) throw new Error('Системный Google токен не найден');
     return auth.tokens;
   }
+
+async sendEmail(to: string, subject: string, text: string) {
+  // 1. Получаем системные токены (вы реализовали этот метод ранее)
+  const tokens = await this.getAdminTokens();
+  this.oauth2Client.setCredentials(tokens);
+  
+  const gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
+
+  // 2. Формируем тело письма (RFC 822)
+  const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
+  const emailLines = [
+    `To: ${to}`,
+    'Content-Type: text/html; charset=utf-8',
+    'MIME-Version: 1.0',
+    `Subject: ${utf8Subject}`,
+    '',
+    text, // Здесь может быть HTML
+  ];
+  
+  const email = emailLines.join('\r\n').trim();
+
+  // 3. Кодируем в base64url (специфика Gmail API)
+  const encodedMessage = Buffer.from(email)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+  return gmail.users.messages.send({
+    userId: 'me',
+    requestBody: {
+      raw: encodedMessage,
+    },
+  });
+}
 
 }

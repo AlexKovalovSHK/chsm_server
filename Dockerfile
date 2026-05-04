@@ -4,5 +4,5 @@ COPY package.json bun.lock* ./
 RUN bun install
 COPY . .
 RUN bun run build
-EXPOSE 5001
+EXPOSE 5008
 CMD ["bun", "run", "start:prod"]
