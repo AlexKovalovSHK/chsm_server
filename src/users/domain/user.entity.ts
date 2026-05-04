@@ -220,6 +220,16 @@ export class User {
     this.props.password = passwordHash;
   }
 
+  setResetCode(code: string, expires: Date) {
+    this.props.metadata.resetCode = code;
+    this.props.metadata.resetCodeExpires = expires.toISOString();
+  }
+
+  clearResetCode() {
+    delete this.props.metadata.resetCode;
+    delete this.props.metadata.resetCodeExpires;
+  }
+
   toJSON() {
     return {
       id: this.props.id.toString(),

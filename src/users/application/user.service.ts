@@ -13,6 +13,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { NewUserDto } from './dto/new-user.dto';
 import * as userRepositoryInterface from '../domain/user.repository.interface';
 import * as bcrypt from 'bcrypt';
+import { ResetPasswordDto } from 'src/auth/dto/reset-password.dto';
 
 @Injectable()
 export class UserService {
@@ -265,4 +266,39 @@ export class UserService {
   async delete(id: string) {
     await this.repo.delete(id);
   }
+
+  // В UserService
+async generateResetCode(email: string) {
+  const user = await this.repo.findByEmail(email.toLowerCase().trim());
+  if (!user) throw new NotFoundException('Пользователь с таким Email не найден');
+  if (!user.tgId) throw new BadRequestException('Аккаунт не привязан к Telegram. Обратитесь в поддержку.');
+
+  const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 знаков
+  const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 минут
+
+  user.setResetCode(code, expires);
+  await this.repo.save(user);
+
+  return { code, tgId: user.tgId };
+}
+
+async resetPasswordWithCode(dto: ResetPasswordDto) {
+  const user = await this.repo.findByEmail(dto.email.toLowerCase().trim());
+  if (!user) throw new NotFoundException('Пользователь не найден');
+
+  const savedCode = user.metadata.resetCode;
+  const expires = user.metadata.resetCodeExpires ? new Date(user.metadata.resetCodeExpires as string) : null;
+
+  if (!savedCode || savedCode !== dto.code || !expires || expires < new Date()) {
+    throw new BadRequestException('Неверный или просроченный код');
+  }
+
+  const saltRounds = 10;
+  const passwordHash = await bcrypt.hash(dto.newPassword, saltRounds);
+  user.setPassword(passwordHash);
+  user.clearResetCode();
+
+  await this.repo.save(user);
+}
+
 }

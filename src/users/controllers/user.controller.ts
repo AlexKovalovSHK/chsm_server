@@ -24,6 +24,8 @@ import type { JwtPayload } from '../../auth/decorators/current-user.decorator';
 import express from 'express';
 import { Public } from 'src/auth/decorators/public.decorator';
 import * as jwtPayloadInterface from 'src/auth/interfaces/jwt-payload.interface';
+import { ResetPasswordDto } from 'src/auth/dto/reset-password.dto';
+import { BotApiService } from '../../telegram/service/bot-api.service';
 
 
 @Controller('api/users')
@@ -33,7 +35,8 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly classroomService: ClassroomService,
-  ) {}
+    private readonly botApiService: BotApiService,
+  ) { }
 
   onModuleInit() {
     if (!process.env.GOOGLE_CLIENT_ID) {
@@ -101,10 +104,10 @@ export class UserController {
   }
 
   // В UserController
-@Patch('sync')
-async sync(@Body() data: any) {
-  return this.userService.syncTelegramUser(data);
-}
+  @Patch('sync')
+  async sync(@Body() data: any) {
+    return this.userService.syncTelegramUser(data);
+  }
 
   @Get('admins/stats')
   @UseGuards(JwtAuthGuard)
@@ -129,6 +132,16 @@ async sync(@Body() data: any) {
       );
       throw error;
     }
+  }
+
+  @Public()
+  @Get('check-email')
+  async checkEmail(@Query('email') email: string) {
+    if (!email?.trim()) {
+      throw new BadRequestException('Email is required');
+    }
+    const user = await this.userService.findByEmail(email.toLowerCase().trim());
+    return { exists: Boolean(user) };
   }
 
   @Get(':id')
@@ -187,4 +200,27 @@ async sync(@Body() data: any) {
     const user = await this.userService.create(createUserDto);
     return UserMapper.toResponseDto(user);
   }
+
+  // В AuthController
+  @Public()
+  @Post('forgot-password')
+  async forgotPassword(@Body('email') email: string) {
+    // Генерируем код и получаем tgId пользователя
+    const { code, tgId } = await this.userService.generateResetCode(email);
+
+    await this.botApiService.sendMessage(
+      tgId,
+      `🔐 Ваш код для сброса пароля: <b>${code}</b>. Действует 15 минут.`
+    );
+
+    return { message: 'Код отправлен в ваш Telegram' };
+  }
+
+  @Public()
+  @Post('reset-password')
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.userService.resetPasswordWithCode(dto);
+    return { message: 'Пароль успешно изменен' };
+  }
+
 }
