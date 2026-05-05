@@ -2,7 +2,9 @@ import { Controller, Get, Query, Res, Inject, Post, forwardRef, Body } from '@ne
 import express from 'express';
 import { ClassroomService } from '../service/classroom.service';
 import { UserService } from '../../users/application/user.service'; // Путь к вашему сервису пользователей
+import { ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Classroom')
 @Controller('auth')
 export class ClassroomController {
   constructor(
@@ -14,6 +16,8 @@ export class ClassroomController {
 
   // 1. Ссылка на вход теперь должна принимать tgId
   // Пример: http://localhost:5001/auth/login?tgId=12345678
+  @ApiOperation({ summary: 'Редирект на Google login по tgId' })
+  @ApiQuery({ name: 'tgId', required: true })
   @Get('login')
   login(@Query('tgId') tgId: string, @Res() res: express.Response) {
     if (!tgId) {
@@ -24,6 +28,8 @@ export class ClassroomController {
     return res.redirect(url);
   }
 
+  @ApiOperation({ summary: 'Редирект на Google login по email' })
+  @ApiQuery({ name: 'email', required: true })
   @Get('login-email')
   loginEmail(@Query('email') email: string, @Res() res: express.Response) {
     if (!email) {
@@ -35,6 +41,9 @@ export class ClassroomController {
   }
 
   // 2. Обработка возврата от Google
+  @ApiOperation({ summary: 'Callback от Google OAuth' })
+  @ApiQuery({ name: 'code', required: true })
+  @ApiQuery({ name: 'state', required: true })
   @Get('callback')
   async callback(@Query('code') code: string, @Query('state') state: string) {
     try {
@@ -58,6 +67,9 @@ export class ClassroomController {
   }
 
   // 3. Отчет по ID курса (теперь берем токены из базы, а не из Query)
+  @ApiOperation({ summary: 'Получить отчет по курсу' })
+  @ApiQuery({ name: 'tgId', required: true })
+  @ApiQuery({ name: 'courseId', required: true })
   @Get('full-report')
   async getReport(
     @Query('tgId') tgId: string,
@@ -74,6 +86,7 @@ export class ClassroomController {
     return report;
   }
 
+  @ApiOperation({ summary: 'Получить курсы Google Classroom' })
   @Get('courses')
   async getCourses() {
     try {
@@ -84,11 +97,13 @@ export class ClassroomController {
     }
   }
 
+  @ApiOperation({ summary: 'Форсировать синхронизацию (deprecated)' })
   @Post('sync')
   async forceSync() {
     return { message: 'Синхронизация курсов больше не требуется, данные берутся напрямую из Google Classroom.' };
   }
 
+  @ApiOperation({ summary: 'Опубликовать объявление о боте' })
   @Post('announce-bot')
   async announceBot() {
     const admin = await this.userService.findAdmin();
@@ -103,6 +118,7 @@ export class ClassroomController {
   }
 
   // 1. Получить полный отчет по всей школе (Live Data из Google)
+  @ApiOperation({ summary: 'Получить live-отчет школы' })
   @Get('admin/live-report')
   async getLiveReport() {
     try {
@@ -119,12 +135,21 @@ export class ClassroomController {
   }
 
   // 2. Синхронизировать все курсы в базу данных (Отключено)
+  @ApiOperation({ summary: 'Синхронизация курсов (deprecated)' })
   @Post('admin/sync-courses')
   async syncAll() {
     return { message: 'Синхронизация курсов больше не требуется, данные берутся напрямую из Google Classroom.' };
   }
 
   // 3. Отправить объявление во все курсы сразу
+  @ApiOperation({ summary: 'Отправить объявление во все курсы' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['text'],
+      properties: { text: { type: 'string' } },
+    },
+  })
   @Post('admin/announce-all')
   async announceAll(@Body('text') text: string) {
     try {
@@ -136,6 +161,18 @@ export class ClassroomController {
   }
 
   // рассылка на gmail
+  @ApiOperation({ summary: 'Рассылка email' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['users', 'text'],
+      properties: {
+        users: { type: 'array', items: { type: 'string' } },
+        subject: { type: 'string' },
+        text: { type: 'string' },
+      },
+    },
+  })
   @Post('broadcast-email')
   async broadcastEmail(
     @Body() dto: { users: string[]; subject?: string; text: string }

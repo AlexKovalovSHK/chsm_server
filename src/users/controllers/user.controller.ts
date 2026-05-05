@@ -26,8 +26,18 @@ import { Public } from 'src/auth/decorators/public.decorator';
 import * as jwtPayloadInterface from 'src/auth/interfaces/jwt-payload.interface';
 import { ResetPasswordDto } from 'src/auth/dto/reset-password.dto';
 import { BotApiService } from '../../telegram/service/bot-api.service';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 
 
+@ApiTags('Users')
+@ApiBearerAuth()
 @Controller('api/users')
 export class UserController {
   private readonly logger = new Logger(UserController.name);
@@ -48,12 +58,17 @@ export class UserController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Получить текущего пользователя из JWT' })
   getMe(@CurrentUser() user: JwtPayload) {
     return user;
   }
 
   @Get()
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Получить список пользователей' })
+  @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'role', required: false })
   async findAll(
     @Query('search') search?: string,
     @Query('status') status?: string,
@@ -65,6 +80,8 @@ export class UserController {
 
   @Get('link-url')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Получить URL для привязки Google по email' })
+  @ApiQuery({ name: 'email', required: true })
   async getLinkUrl(@Query('email') email: string) {
     // Формируем state вручную и передаем ОДНИМ аргументом
     const state = `web:${email}`;
@@ -74,6 +91,9 @@ export class UserController {
 
   @Public()
   @Get('link')
+  @ApiOperation({ summary: 'Редирект на Google OAuth по tgId/email' })
+  @ApiQuery({ name: 'tgId', required: false })
+  @ApiQuery({ name: 'email', required: false })
   async link(
     @Res() res: express.Response,
     @Query('tgId') tgId?: string,
@@ -94,6 +114,8 @@ export class UserController {
   }
 
   @Get('auth-link')
+  @ApiOperation({ summary: 'Получить auth ссылку по tgId' })
+  @ApiQuery({ name: 'tgId', required: true })
   async getAuthLink(@Query('tgId') tgId: string) {
     if (!tgId) throw new BadRequestException('tgId is required');
 
@@ -105,12 +127,15 @@ export class UserController {
 
   // В UserController
   @Patch('sync')
+  @ApiOperation({ summary: 'Синхронизировать пользователя из Telegram' })
   async sync(@Body() data: any) {
     return this.userService.syncTelegramUser(data);
   }
 
   @Get('admins/stats')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Получить статистику курса для администратора' })
+  @ApiQuery({ name: 'courseId', required: true })
   async getCourseStats(@Query('courseId') courseId: string) {
     try {
       const admin = await this.userService.findAdmin();
@@ -136,6 +161,8 @@ export class UserController {
 
   @Public()
   @Get('check-email')
+  @ApiOperation({ summary: 'Проверить существование email' })
+  @ApiQuery({ name: 'email', required: true })
   async checkEmail(@Query('email') email: string) {
     if (!email?.trim()) {
       throw new BadRequestException('Email is required');
@@ -146,12 +173,16 @@ export class UserController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Получить пользователя по ID' })
+  @ApiParam({ name: 'id' })
   async findOne(@Param('id') id: string) {
     const user = await this.userService.findById(id);
     return UserMapper.toResponseDto(user);
   }
 
   @Get('by-tg/:id')
+  @ApiOperation({ summary: 'Получить пользователя по Telegram ID' })
+  @ApiParam({ name: 'id' })
   async findByTgId(@Param('id') id: string) {
     const user = await this.userService.findByTgId(id);
     return UserMapper.toResponseDto(user);
@@ -159,6 +190,8 @@ export class UserController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Обновить пользователя по ID' })
+  @ApiParam({ name: 'id' })
   async update(@Param('id') id: string, @Body() updateData: UpdateUserDto) {
     const updatedUser = await this.userService.update(id, updateData);
     return UserMapper.toResponseDto(updatedUser);
@@ -166,6 +199,8 @@ export class UserController {
 
   @Patch('me/password')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Изменить пароль текущего пользователя' })
+  @ApiBody({ type: ChangePasswordDto })
   async changePassword(
     @Body() changePasswordDto: ChangePasswordDto,
   ) {
@@ -175,18 +210,31 @@ export class UserController {
 
   @Patch(':id/role')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Изменить роль пользователя' })
+  @ApiParam({ name: 'id' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['role'],
+      properties: { role: { type: 'string' } },
+    },
+  })
   async changeRole(@Param('id') id: string, @Body('role') role: string) {
     return this.userService.changeRole(id, role);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Удалить пользователя' })
+  @ApiParam({ name: 'id' })
   async remove(@Param('id') id: string) {
     return this.userService.delete(id);
   }
 
   @Post()
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Создать пользователя' })
+  @ApiBody({ type: NewUserDto })
   async create(@Body() createUserDto: NewUserDto) {
     const user = await this.userService.create(createUserDto);
     return UserMapper.toResponseDto(user);
@@ -195,6 +243,14 @@ export class UserController {
   // В AuthController
   @Public()
   @Post('forgot-password')
+  @ApiOperation({ summary: 'Отправить код восстановления в Telegram' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email'],
+      properties: { email: { type: 'string' } },
+    },
+  })
   async forgotPassword(@Body('email') email: string) {
     // Генерируем код и получаем tgId пользователя
     const { code, tgId } = await this.userService.generateResetCode(email);
@@ -209,6 +265,8 @@ export class UserController {
 
   @Public()
   @Post('reset-password')
+  @ApiOperation({ summary: 'Сбросить пароль по коду' })
+  @ApiBody({ type: ResetPasswordDto })
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.userService.resetPasswordWithCode(dto);
     return { message: 'Пароль успешно изменен' };

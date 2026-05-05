@@ -11,7 +11,7 @@ async function bootstrap() {
 
   // Добавляем Basic Auth для Swagger
   app.use(
-    ['/api/docs', '/api/docs-json'],
+    ['/api/docs', '/api/docs-json', '/api/docs-download'],
     basicAuth({
       users: { admin: 'Abc!1234' },
       challenge: true,
@@ -27,7 +27,28 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('/api/docs', app, document);
+  
+  // Эндпоинт для скачивания JSON
+  app.getHttpAdapter().get('/api/docs-download', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="swagger.json"');
+    res.send(document);
+  });
+  
+  // Эндпоинт для скачивания YAML
+  app.getHttpAdapter().get('/api/docs-download/yaml', (req, res) => {
+    const yaml = require('js-yaml');
+    const yamlString = yaml.dump(document);
+    res.setHeader('Content-Type', 'application/x-yaml');
+    res.setHeader('Content-Disposition', 'attachment; filename="swagger.yaml"');
+    res.send(yamlString);
+  });
+
+  SwaggerModule.setup('/api/docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  });
 
   app.useGlobalPipes(new ValidationPipe());
   app.enableCors({

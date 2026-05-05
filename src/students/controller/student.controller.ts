@@ -11,26 +11,34 @@ import {
 import { StudentService } from '../service/student.service';
 import { CreateStudentDto } from '../dto/create-student.dto';
 import { UpdateStudentDto } from '../dto/update-student.dto';
+import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Students')
 @Controller('students')
 export class StudentController {
   constructor(private readonly studentService: StudentService) {}
 
+  @ApiOperation({ summary: 'Создать студента' })
   @Post()
   async create(@Body() createDto: CreateStudentDto) {
     return await this.studentService.create(createDto);
   }
 
+  @ApiOperation({ summary: 'Получить список студентов' })
   @Get()
   async findAll() {
     return await this.studentService.findAll();
   }
 
+  @ApiOperation({ summary: 'Получить студента по ID' })
+  @ApiParam({ name: 'id', format: 'uuid' })
   @Get(':id')
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return await this.studentService.findOne(id);
   }
 
+  @ApiOperation({ summary: 'Обновить студента' })
+  @ApiParam({ name: 'id', format: 'uuid' })
   @Patch(':id')
   async update(
     @Param('id', ParseUUIDPipe) id: string, 
@@ -39,6 +47,8 @@ export class StudentController {
     return await this.studentService.update(id, updateDto);
   }
 
+  @ApiOperation({ summary: 'Удалить студента' })
+  @ApiParam({ name: 'id', format: 'uuid' })
   @Delete(':id')
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     return await this.studentService.remove(id);
