@@ -1,11 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL") 
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -27,13 +27,14 @@ model User {
   isVerified       Boolean   @default(false) @map("is_verified")
   isPremium        Boolean   @default(false) @map("is_premium")
   platformId       String?   @map("platform_id")
-  metadata         Json      @default("{}") 
+  metadata         Json      @default("{}")
   sourceUser       String?   @map("source_user")
   sourceTg         String?   @map("source_tg")
   mergedAt         DateTime? @map("merged_at")
   password         String?
   createdAt        DateTime? @map("created_at")
   updatedAt        DateTime? @map("updated_at")
+  studentProfile   Student?
 
   @@map("users")
 }
@@ -52,4 +53,138 @@ model GoogleAuth {
   updatedAt    DateTime? @map("updated_at")
 
   @@map("google_auths")
+}
+
+// --- ENUMS ---
+
+enum SessionStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum EnrollmentStatus {
+  ENROLLED
+  DROPPED
+  COMPLETED
+}
+
+enum GradebookStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+// --- MODELS ---
+
+model AcademicYear {
+  id       String   @id @default(uuid()) @db.Uuid
+  label    String
+  startsAt DateTime @map("starts_at")
+  endsAt   DateTime @map("ends_at")
+
+  sessionRuns SessionRun[]
+
+  @@map("academic_years")
+}
+
+model SessionLevel {
+  id          String  @id @default(uuid()) @db.Uuid
+  number      Int
+  title       String
+  description String? @db.Text
+
+  sessionRuns SessionRun[]
+  subjects    Subject[]
+
+  @@map("session_levels")
+}
+
+model Student {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          Int   @unique @map("user_id")
+  instrument      String
+  specialization  String
+  name            String
+  telegramId      String?  @unique @map("telegram_id")
+  classroomUserId String?  @unique @map("classroom_user_id")
+  enrolledAt      DateTime @default(now()) @map("enrolled_at")
+
+  user            User     @relation(fields: [userId], references: [id])
+
+  enrollments Enrollment[]
+
+  @@map("students")
+}
+
+model SessionRun {
+  id                String        @id @default(uuid()) @db.Uuid
+  levelId           String        @map("level_id") @db.Uuid
+  academicYearId    String        @map("academic_year_id") @db.Uuid
+  classroomCourseId String?       @map("classroom_course_id")
+  status            SessionStatus @default(PLANNED)
+
+  level        SessionLevel @relation(fields: [levelId], references: [id])
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id])
+  enrollments  Enrollment[]
+
+  @@map("session_runs")
+}
+
+model Subject {
+  id                    String  @id @default(uuid()) @db.Uuid
+  levelId               String  @map("level_id") @db.Uuid
+  title                 String
+  teacherName           String? @map("teacher_name")
+  hours                 Int?
+  classroomCourseworkId String? @map("classroom_coursework_id")
+  hasClassroom          Boolean @default(false) @map("has_classroom")
+
+  level        SessionLevel @relation(fields: [levelId], references: [id])
+  gradeEntries GradeEntry[]
+
+  @@map("subjects")
+}
+
+model Enrollment {
+  id           String           @id @default(uuid()) @db.Uuid
+  studentId    String           @map("student_id") @db.Uuid
+  sessionRunId String           @map("session_run_id") @db.Uuid
+  enrolledAt   DateTime         @default(now()) @map("enrolled_at")
+  status       EnrollmentStatus @default(ENROLLED)
+
+  student      Student      @relation(fields: [studentId], references: [id])
+  sessionRun   SessionRun   @relation(fields: [sessionRunId], references: [id])
+  gradeEntries GradeEntry[]
+  gradebooks   Gradebook[]
+
+  @@map("enrollments")
+}
+
+model GradeEntry {
+  id           String   @id @default(uuid()) @db.Uuid
+  enrollmentId String   @map("enrollment_id") @db.Uuid
+  subjectId    String   @map("subject_id") @db.Uuid
+  value        Int
+  source       String? // Например, "Google Classroom" или "Manual"
+  recordedAt   DateTime @default(now()) @map("recorded_at")
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  subject    Subject    @relation(fields: [subjectId], references: [id])
+
+  @@map("grade_entries")
+}
+
+model Gradebook {
+  id           String          @id @default(uuid()) @db.Uuid
+  enrollmentId String          @map("enrollment_id") @db.Uuid
+  status       GradebookStatus @default(DRAFT)
+  approvedAt   DateTime?       @map("approved_at")
+  approvedBy   String?         @map("approved_by") // ID админа или имя
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+
+  @@map("gradebooks")
 }

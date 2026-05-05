@@ -9,6 +9,15 @@ import { UsersModule } from './users/users.module';
 import { TelegramModule } from './telegram/tg.module';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { AcademicYearModule } from './sessions/academic_years/academic-year.module';
+import { SessionLevelModule } from './sessions/session_levels/session-level.module';
+import { SessionRunModule } from './sessions/sessions_runs/session-run.module';
+import { StudentModule } from './students/student.module';
+import { SubjectModule } from './subjects/subject.module';
+import { EnrollmentModule } from './enrollments/enrollment.module';
+import { GradeEntryModule } from './grades/entries/grade-entry.module';
+import { GradebookModule } from './grades/gradebooks/gradebook.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -19,8 +28,17 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     TelegramModule,
     ClassroomModule,
+    AcademicYearModule,
+    SessionLevelModule,
+    SessionRunModule,
+    StudentModule,
+    SubjectModule,
+    EnrollmentModule,
+    GradeEntryModule,
+    GradebookModule
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule { }
+
