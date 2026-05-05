@@ -13,10 +13,6 @@ export interface UserProps {
   tgId?: string;
   role: UserRole;
   status: UserStatus;
-  courses: string[];
-  lastSeenTaskIds: string[];
-  xp: number;
-  level: number;
   googleTokens?: {
     access_token: string;
     refresh_token: string;
@@ -44,10 +40,6 @@ export class User {
       | 'id'
       | 'status'
       | 'role'
-      | 'xp'
-      | 'level'
-      | 'courses'
-      | 'lastSeenTaskIds'
       | 'registrationStep'
       | 'isVerified'
       | 'isPremium'
@@ -63,10 +55,6 @@ export class User {
       lastName: props.lastName,
       role: props.role ?? UserRole.STUDENT,
       status: props.status ?? UserStatus.ACTIVE,
-      courses: props.courses ?? [],
-      lastSeenTaskIds: props.lastSeenTaskIds ?? [],
-      xp: props.xp ?? 0,
-      level: props.level ?? 1,
       registrationStep: props.registrationStep ?? 'new',
       isVerified: props.isVerified ?? false,
       isPremium: props.isPremium ?? false,
@@ -108,18 +96,6 @@ export class User {
   }
   get status(): UserStatus {
     return this.props.status;
-  }
-  get courses(): string[] {
-    return this.props.courses;
-  }
-  get lastSeenTaskIds(): string[] {
-    return this.props.lastSeenTaskIds;
-  }
-  get xp(): number {
-    return this.props.xp;
-  }
-  get level(): number {
-    return this.props.level;
   }
   get googleTokens() {
     return this.props.googleTokens;
@@ -170,22 +146,6 @@ export class User {
     this.props.status = UserStatus.ACTIVE;
   }
 
-  addXp(amount: number): {
-    newXp: number;
-    newLevel: number;
-    isLevelUp: boolean;
-  } {
-    const oldLevel = this.props.level;
-    this.props.xp += amount;
-    this.props.level = Math.floor(this.props.xp / 100) + 1;
-
-    return {
-      newXp: this.props.xp,
-      newLevel: this.props.level,
-      isLevelUp: this.props.level > oldLevel,
-    };
-  }
-
   archive() {
     this.props.status = UserStatus.ARCHIVED;
   }
@@ -201,7 +161,7 @@ export class User {
 
   updateDetails(
     props: Partial<
-      Omit<UserProps, 'id' | 'role' | 'status' | 'xp' | 'level'>
+      Omit<UserProps, 'id' | 'role' | 'status'>
     > & { status?: string; role?: string },
   ) {
     const { status, role, ...other } = props;
@@ -242,10 +202,6 @@ export class User {
       tgId: this.props.tgId,
       role: this.props.role.toString(),
       status: this.props.status.toString(),
-      courses: this.props.courses,
-      lastSeenTaskIds: this.props.lastSeenTaskIds,
-      xp: this.props.xp,
-      level: this.props.level,
       googleTokens: this.props.googleTokens,
       languageCode: this.props.languageCode,
       registrationStep: this.props.registrationStep,

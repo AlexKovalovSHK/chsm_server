@@ -133,15 +133,6 @@ export class UserService {
     return this.repo.save(newUser);
   }
 
-  async addXp(tgId: string, amount: number) {
-    const user = await this.repo.findByTgId(tgId);
-    if (!user) throw new NotFoundException('Пользователь не найден');
-
-    const result = user.addXp(amount);
-    await this.repo.save(user);
-
-    return result;
-  }
 
   async softDelete(id: string) {
     const user = await this.repo.findById(id);

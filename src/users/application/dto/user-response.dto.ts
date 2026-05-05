@@ -35,12 +35,6 @@ export class UserResponseDto {
   googleId?: string;
 
   @ApiProperty()
-  xp: number;
-
-  @ApiProperty()
-  level: number;
-
-  @ApiProperty()
   registrationStep: string;
 
   @ApiProperty()

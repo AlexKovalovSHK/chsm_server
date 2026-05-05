@@ -1,98 +1,109 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# CHSM Classroom Integrations
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+CHSM Classroom Integrations is a backend API service built with **NestJS**. It acts as a central hub connecting Google Classroom, Telegram, and a custom web/extension front-end into a unified user management and notification system.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 📌 System Overview
 
-## Description
+The primary goal of this system is to manage students and teachers across multiple platforms, synchronizing data between Google Classroom and Telegram. It allows administrators to track students, sync course states, and send bulk announcements or personal messages via a Telegram Bot.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+### Key Features
+1. **User Management (DDD Pattern)**:
+   - Full CRUD for users with roles (`student`, `admin`, etc.).
+   - Stores Telegram ID (`tgId`) and Google ID (`googleId`) to unify user identity.
+2. **Google Classroom Integration**:
+   - OAuth2 authorization flow.
+   - Syncs active courses, students, and teachers.
+   - Fetches coursework and grades.
+   - Allows sending global announcements to all Classroom courses.
+   - Sends emails via Gmail API.
+3. **Telegram Bot Integration**:
+   - Built on `grammy` to act as an internal API for a Telegram bot.
+   - Exposes endpoints to sync Telegram users, update registration steps, and handle user blocking.
+   - Allows broadcasting messages to specific Telegram users by `tgId` or `email` (used by Chrome Extension).
+4. **Authentication & Security**:
+   - JWT-based authentication using Passport.
+   - Basic Auth protection for Swagger documentation.
+   - CORS configured for multiple administrative frontends and browser extensions.
 
-## Project setup
+---
 
-```bash
-$ npm install
+## 🏗 Architecture
+
+The project is structured according to **Domain-Driven Design (DDD)** principles and modular NestJS architecture:
+
+```text
+src/
+├── prisma/                 # PrismaService and global DB client
+├── app.module.ts           # Root module connecting Postgres, Scheduler, and all domains
+├── auth/                   # Authentication domain (JWT, Guards, Strategies)
+├── classroom/              # Google Classroom integration logic
+│   └── service/            # Business logic for Google APIs (courses, Gmail, students)
+├── telegram/               # Telegram bot and messaging logic
+│   ├── controller/         # Webhooks & internal REST API (e.g. broadcasting)
+│   └── service/            # Bot API interaction and user sync logic
+└── users/                  # Core user domain
+    ├── application/        # Application services and DTOs (UserService, Mappers)
+    ├── controllers/        # REST API for users
+    └── infrastructure/     # Database logic (Prisma User Repository)
 ```
 
-## Compile and run the project
+### Technology Stack
+- **Framework**: NestJS (TypeScript)
+- **Runtime Engine**: Bun
+- **Database**: PostgreSQL (Prisma 5.x)
+- **APIs**: Google APIs (Classroom, Gmail, OAuth2), Telegram Bot API (`grammy`)
+- **Containerization**: Docker & Docker Compose (`chsm_serv` running on port 5008)
+
+---
+
+## ⚙️ Principle of Operation
+
+1. **Authentication Flow**:
+   - Users/Admins can authenticate via standard login (yielding a JWT) or through Google OAuth.
+   - When authenticating via Google, the system retrieves tokens and Google Profile, linking it to an existing email or Telegram ID.
+
+2. **Data Synchronization**:
+   - **Telegram**: The Telegram bot calls `POST /internal/users/upsert` or `PATCH /internal/users/sync` to create or update users in the PostgreSQL database via `UserService`.
+   - **Classroom**: Administrators can fetch the latest roster of students, teachers, and active courses directly via Google API integrations. All persistence flows through `UserService`.
+
+3. **Broadcasting Engine**:
+   - The system exposes endpoints like `POST /internal/users/broadcast-extension`.
+   - The Chrome extension or Admin Web Panel sends a list of emails and a text message.
+   - The system looks up the corresponding `tgId` for each email and dispatches the message via the Telegram Bot API (`BotApiService`).
+
+---
+
+## 🚀 Getting Started for Agents/Developers
+
+### Prerequisites
+- Node.js (or Bun) installed.
+- PostgreSQL database running.
+- `.env` file with Google API credentials (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`), Telegram Bot Token, JWT secret, and `DATABASE_URL`.
+
+### Running the Project Locally
 
 ```bash
-# development
-$ npm run start
+# Install dependencies
+npm install (or bun install)
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+# Run in development mode using Bun
+npm run start:dev
 ```
 
-## Run tests
+### Running with Docker
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+docker-compose up -d --build
 ```
 
-## Deployment
+### Important API Endpoints
+- **Swagger Docs**: `/api/docs` (Protected by Basic Auth: `admin` / `Abc!1234`)
+- **Google Auth**: `/classroom/auth`
+- **User Broadcast**: `/internal/users/broadcast-extension` (Expects array of emails and text)
+- **Telegram Webhook/Internal**: `/internal/users/...`
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Further Work Context
+When working with agents on this repository:
+- Any new database models should be placed in `infrastructure` or `schemas` folders respectively.
+- Business logic should be kept in `application` or `service` layers.
+- Be cautious with CORS changes in `main.ts` as the Chrome Extension and Admin panels rely on specific origins.

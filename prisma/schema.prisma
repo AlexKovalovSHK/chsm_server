@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL") 
+}
+
+model User {
+  id               Int       @id @default(autoincrement())
+  mongoId          String?   @unique @map("mongo_id")
+  firstName        String?   @map("first_name")
+  lastName         String?   @map("last_name")
+  username         String?
+  tel              String?
+  photoUrl         String?   @map("photo_url")
+  email            String?
+  tgId             String?   @map("tg_id")
+  googleId         String?   @map("google_id")
+  role             String    @default("student")
+  status           String    @default("active")
+  googleTokens     Json?     @map("google_tokens")
+  languageCode     String?   @map("language_code")
+  registrationStep String    @default("new") @map("registration_step")
+  isVerified       Boolean   @default(false) @map("is_verified")
+  isPremium        Boolean   @default(false) @map("is_premium")
+  platformId       String?   @map("platform_id")
+  metadata         Json      @default("{}") 
+  sourceUser       String?   @map("source_user")
+  sourceTg         String?   @map("source_tg")
+  mergedAt         DateTime? @map("merged_at")
+  password         String?
+  createdAt        DateTime? @map("created_at")
+  updatedAt        DateTime? @map("updated_at")
+
+  @@map("users")
+}
+
+model GoogleAuth {
+  id           Int       @id @default(autoincrement())
+  mongoId      String?   @unique @map("mongo_id")
+  email        String?   @unique
+  isActive     Boolean   @default(true) @map("is_active")
+  accessToken  String?   @map("access_token")
+  refreshToken String?   @map("refresh_token")
+  expiryDate   BigInt?   @map("expiry_date")
+  scope        String?
+  tokenType    String?   @map("token_type")
+  createdAt    DateTime? @map("created_at")
+  updatedAt    DateTime? @map("updated_at")
+
+  @@map("google_auths")
+}

@@ -4,6 +4,7 @@
 /build
 
 .env
+neon_secrets.md
 
 # Logs
 logs

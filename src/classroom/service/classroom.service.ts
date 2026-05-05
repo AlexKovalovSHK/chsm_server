@@ -1,20 +1,16 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { google, classroom_v1 } from 'googleapis';
-import { Course } from '../schemas/course.schema';
-import { Model } from 'mongoose';
-import { InjectModel } from '@nestjs/mongoose';
-import { UserDocument } from '../../users/infrastructure/user.document';
-import { GoogleAuth } from '../classroomAuth/google-auth.schema';
+import { UserService } from '../../users/application/user.service';
+import { GoogleAuthService } from './google-auth.service';
 
 @Injectable()
 export class ClassroomService implements OnModuleInit {
   private oauth2Client: any;
 
   constructor(
-    // ВНЕДРЯЕМ МОДЕЛЬ ТУТ:
-    @InjectModel(GoogleAuth.name) private readonly googleAuthModel: Model<GoogleAuth>,
-    @InjectModel(Course.name) private courseModel: Model<Course>,
-    @InjectModel('User') private userModel: Model<UserDocument>,
+    private readonly googleAuthService: GoogleAuthService,
+    @Inject(forwardRef(() => UserService))
+    private readonly userService: UserService,
   ) {
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
@@ -52,6 +48,7 @@ export class ClassroomService implements OnModuleInit {
       ],
     });
   }
+
   getAuthUrlByTg(tgId: string) {
     return this.getAuthUrl(tgId);
   }
@@ -62,10 +59,9 @@ export class ClassroomService implements OnModuleInit {
 
   async getGoogleProfile(tokens: any) {
     this.oauth2Client.setCredentials(tokens);
-    // Используем oauth2 API вместо classroom
     const oauth2 = google.oauth2({ version: 'v2', auth: this.oauth2Client });
     const res = await oauth2.userinfo.get();
-    return res.data; // Здесь лежат email, given_name, family_name, picture
+    return res.data;
   }
 
   async getTokensFromCode(code: string) {
@@ -92,11 +88,10 @@ export class ClassroomService implements OnModuleInit {
     const report: any[] = [];
 
     for (const work of coursework) {
-      const submissionsRes =
-        await classroom.courses.courseWork.studentSubmissions.list({
-          courseId,
-          courseWorkId: work.id!,
-        });
+      const submissionsRes = await classroom.courses.courseWork.studentSubmissions.list({
+        courseId,
+        courseWorkId: work.id!,
+      });
       report.push({
         assignment: work.title,
         results:
@@ -110,62 +105,28 @@ export class ClassroomService implements OnModuleInit {
     return report;
   }
 
-  // src/classroom/service/classroom.service.ts
-
   async getStudents(tokens: any, courseId: string) {
-    // 1. Инициализируем клиент с токенами админа
     const classroom = this.getClassroom(tokens);
 
     try {
-      // 2. Делаем запрос к списку студентов курса
       const res = await classroom.courses.students.list({
         courseId: courseId,
       });
-
-      // 3. Возвращаем массив студентов (или пустой массив, если никого нет)
-      // Каждый объект студента содержит: userId, profile (name, emailAddress, photoUrl)
       return res.data.students || [];
     } catch (error) {
-      console.error(
-        `Ошибка при получении списка студентов курса ${courseId}:`,
-        error,
-      );
-      // В случае ошибки (например, курс не найден), возвращаем пустой список, чтобы не ломать фронтенд
+      console.error(`Ошибка при получении списка студентов курса ${courseId}:`, error);
       return [];
     }
   }
 
-  async syncCoursesToDb(tokens: any) {
-    const googleCourses = await this.getAllCourses(tokens);
-
-    for (const gCourse of googleCourses) {
-      if (!gCourse.id) continue;
-
-      await this.courseModel.findOneAndUpdate(
-        { googleCourseId: gCourse.id },
-        {
-          $set: {
-            name: gCourse.name,
-            section: gCourse.section,
-            description: gCourse.descriptionHeading,
-          },
-        },
-        { upsert: true },
-      );
-    }
-    return { message: 'Курсы синхронизированы', count: googleCourses.length };
-  }
-
-  async getCourses(data: any) {
-    // Просто возвращаем всё, что сохранили в базу
-    return this.courseModel.find({ isActive: true }).exec();
+  async getCourses(tokens: any) {
+    return this.getAllCourses(tokens);
   }
 
   async postAnnouncementToAll(tokens: any, text: string) {
     const classroom = this.getClassroom(tokens);
     const courses = await this.getAllCourses(tokens);
 
-    // 1. Явно указываем тип массива (вместо never)
     const results: { course: string; status: string; error?: string }[] = [];
 
     for (const course of courses) {
@@ -196,48 +157,20 @@ export class ClassroomService implements OnModuleInit {
   }
 
   async saveGoogleTokens(state: string, email: string, tokens: any, profile: any) {
-    // Пробуем найти пользователя либо по tgId, либо по email
-    return this.userModel.findOneAndUpdate(
-      {
-        $or: [
-          { tgId: state },
-          { email: state.includes('@') ? state : email }
-        ]
-      },
-      {
-        $set: {
-          googleTokens: {
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
-            expiry_date: tokens.expiry_date,
-          },
-          email: email.toLowerCase(),
-          firstName: profile.given_name,
-          lastName: profile.family_name,
-          photoUrl: profile.picture,
-          googleId: profile.id,
-          isVerified: true
-        }
-      },
-      { upsert: true, new: true }
-    );
+    return this.userService.saveGoogleTokens(state, email, tokens, profile);
   }
 
   async getLiveFullState(tokens: any) {
     const classroom = this.getClassroom(tokens);
 
-    // 1. Получаем список всех активных курсов
     const coursesRes = await classroom.courses.list({
       courseStates: ['ACTIVE'],
     });
     const courses = coursesRes.data.courses || [];
 
-    // 2. Для каждого курса собираем детальную информацию
-    // Используем Promise.all для ускорения (запросы идут параллельно)
     const fullState = await Promise.all(
       courses.map(async (course) => {
         try {
-          // Запрашиваем студентов и учителей одновременно
           const [studentsRes, teachersRes] = await Promise.all([
             classroom.courses.students.list({ courseId: course.id! }),
             classroom.courses.teachers.list({ courseId: course.id! }),
@@ -248,13 +181,13 @@ export class ClassroomService implements OnModuleInit {
             name: course.name,
             section: course.section,
             alternateLink: course.alternateLink,
-            teachers: (teachersRes.data.teachers || []).map(t => ({
+            teachers: (teachersRes.data.teachers || []).map((t: any) => ({
               id: t.userId,
               name: t.profile?.name?.fullName,
               email: t.profile?.emailAddress,
               photo: t.profile?.photoUrl
             })),
-            students: (studentsRes.data.students || []).map(s => ({
+            students: (studentsRes.data.students || []).map((s: any) => ({
               id: s.userId,
               name: s.profile?.name?.fullName,
               email: s.profile?.emailAddress,
@@ -275,58 +208,43 @@ export class ClassroomService implements OnModuleInit {
     };
   }
 
-  // Метод для сохранения системного токена
   async saveAdminTokens(email: string, tokens: any) {
-    return this.googleAuthModel.findOneAndUpdate(
-      { email: email.toLowerCase() },
-      {
-        tokens: tokens,
-        isActive: true
-      },
-      { upsert: true, new: true }
-    );
+    return this.googleAuthService.saveAdminTokens(email, tokens);
   }
 
-  // Метод для получения системного токена
   async getAdminTokens() {
-    const auth = await this.googleAuthModel.findOne({ isActive: true }).exec();
-    if (!auth) throw new Error('Системный Google токен не найден');
-    return auth.tokens;
+    return this.googleAuthService.getAdminTokens();
   }
 
-async sendEmail(to: string, subject: string, text: string) {
-  // 1. Получаем системные токены (вы реализовали этот метод ранее)
-  const tokens = await this.getAdminTokens();
-  this.oauth2Client.setCredentials(tokens);
-  
-  const gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
+  async sendEmail(to: string, subject: string, text: string) {
+    const tokens = await this.getAdminTokens();
+    this.oauth2Client.setCredentials(tokens);
+    
+    const gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
 
-  // 2. Формируем тело письма (RFC 822)
-  const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
-  const emailLines = [
-    `To: ${to}`,
-    'Content-Type: text/html; charset=utf-8',
-    'MIME-Version: 1.0',
-    `Subject: ${utf8Subject}`,
-    '',
-    text, // Здесь может быть HTML
-  ];
-  
-  const email = emailLines.join('\r\n').trim();
+    const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
+    const emailLines = [
+      `To: ${to}`,
+      'Content-Type: text/html; charset=utf-8',
+      'MIME-Version: 1.0',
+      `Subject: ${utf8Subject}`,
+      '',
+      text,
+    ];
+    
+    const email = emailLines.join('\r\n').trim();
 
-  // 3. Кодируем в base64url (специфика Gmail API)
-  const encodedMessage = Buffer.from(email)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+    const encodedMessage = Buffer.from(email)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
 
-  return gmail.users.messages.send({
-    userId: 'me',
-    requestBody: {
-      raw: encodedMessage,
-    },
-  });
-}
-
+    return gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: encodedMessage,
+      },
+    });
+  }
 }

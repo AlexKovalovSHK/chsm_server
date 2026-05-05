@@ -173,15 +173,6 @@ export class UserController {
     return { message: 'Пароль успешно изменен' };
   }
 
-  @Post(':tgId/add-xp')
-  @UseGuards(JwtAuthGuard)
-  async rewardUser(
-    @Param('tgId') tgId: string,
-    @Body('amount') amount: number,
-  ) {
-    return this.userService.addXp(tgId, amount);
-  }
-
   @Patch(':id/role')
   @UseGuards(JwtAuthGuard)
   async changeRole(@Param('id') id: string, @Body('role') role: string) {

@@ -76,14 +76,17 @@ export class ClassroomController {
 
   @Get('courses')
   async getCourses() {
-    // Просто возвращаем всё, что сохранили в базу
-    return this.classroomService.getCourses({ isActive: true });
+    try {
+      const adminTokens = await this.classroomService.getAdminTokens();
+      return this.classroomService.getCourses(adminTokens);
+    } catch (error: any) {
+      return { error: error.message };
+    }
   }
 
   @Post('sync')
   async forceSync() {
-    const admin = await this.userService.findAdmin();
-    return this.classroomService.syncCoursesToDb(admin.googleTokens);
+    return { message: 'Синхронизация курсов больше не требуется, данные берутся напрямую из Google Classroom.' };
   }
 
   @Post('announce-bot')
@@ -115,15 +118,10 @@ export class ClassroomController {
     }
   }
 
-  // 2. Синхронизировать все курсы в базу данных
+  // 2. Синхронизировать все курсы в базу данных (Отключено)
   @Post('admin/sync-courses')
   async syncAll() {
-    try {
-      const adminTokens = await this.classroomService.getAdminTokens();
-      return await this.classroomService.syncCoursesToDb(adminTokens);
-    } catch (error: any) {
-      return { error: error.message };
-    }
+    return { message: 'Синхронизация курсов больше не требуется, данные берутся напрямую из Google Classroom.' };
   }
 
   // 3. Отправить объявление во все курсы сразу
