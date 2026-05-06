@@ -1,5 +1,7 @@
 # Как получить и сохранить Google Classroom admin token
 
+bunx prisma generate
+
 ## Что важно понимать
 
 В проекте есть 2 вида токенов:

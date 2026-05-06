@@ -6,6 +6,10 @@ export class CreateSubjectDto {
   @IsUUID()
   levelId: string;
 
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID()
+  sessionRunId: string;
+
   @ApiProperty({ example: 'Music Theory' })
   @IsString()
   @IsNotEmpty()

@@ -31,6 +31,12 @@ export class UserResponseDto {
   @ApiProperty()
   status: string;
 
+  @ApiProperty()
+  xp: number;
+
+  @ApiProperty()
+  level: number;
+
   @ApiProperty({ required: false })
   googleId?: string;
 

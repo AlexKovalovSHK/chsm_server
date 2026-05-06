@@ -8,6 +8,8 @@ export class StudentService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateStudentDto) {
+    console.log(dto);
+    
     const existing = await this.prisma.student.findUnique({
       where: { userId: dto.userId },
     });

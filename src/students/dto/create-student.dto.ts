@@ -3,8 +3,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateStudentDto {
   @ApiProperty({ example: 101 })
-  @IsInt()
-  userId: number;
+  @IsString()
+  userId: string;
 
   @ApiProperty({ example: 'Trumpet' })
   @IsString()
@@ -20,6 +20,14 @@ export class CreateStudentDto {
   @IsString()
   @IsNotEmpty()
   name: string;
+
+  @ApiProperty({ example: 'London' })
+  @IsString()
+  city: string;
+
+  @ApiProperty({ example: 'EN' })
+  @IsString()
+  country: string;
 
   @ApiPropertyOptional({ example: '123456789' })
   @IsString()

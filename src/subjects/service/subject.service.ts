@@ -10,20 +10,20 @@ export class SubjectService {
   async create(dto: CreateSubjectDto) {
     return this.prisma.subject.create({
       data: dto,
-      include: { level: true },
+      include: { level: true, sessionRun: true },
     });
   }
 
   async findAll() {
     return this.prisma.subject.findMany({
-      include: { level: true },
+      include: { level: true, sessionRun: true },
     });
   }
 
   async findOne(id: string) {
     const subject = await this.prisma.subject.findUnique({
       where: { id },
-      include: { level: true },
+      include: { level: true, sessionRun: true },
     });
     if (!subject) {
       throw new NotFoundException(`Subject with ID ${id} not found`);
@@ -36,7 +36,7 @@ export class SubjectService {
     return this.prisma.subject.update({
       where: { id },
       data: dto,
-      include: { level: true },
+      include: { level: true, sessionRun: true },
     });
   }
 

@@ -23,6 +23,12 @@ export class EnrollmentService {
     });
   }
 
+  async findAllByStudentId(id: string) {
+    return this.prisma.enrollment.findMany({
+      include: { student: true, sessionRun: true },
+    });
+  }
+
   async findOne(id: string) {
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { id },

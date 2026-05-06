@@ -21,6 +21,8 @@ export class StudentController {
   @ApiOperation({ summary: 'Создать студента' })
   @Post()
   async create(@Body() createDto: CreateStudentDto) {
+    console.log(createDto);
+    
     return await this.studentService.create(createDto);
   }
 

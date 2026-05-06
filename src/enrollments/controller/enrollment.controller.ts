@@ -30,6 +30,12 @@ export class EnrollmentController {
     return await this.enrollmentService.findAll();
   }
 
+  @ApiOperation({ summary: 'Получить список зачислений для студента' })
+  @Get('students/:id')
+  async findAllByStudentId(@Param('id') id: string) {
+    return await this.enrollmentService.findAllByStudentId(id);
+  }
+
   @ApiOperation({ summary: 'Получить зачисление по ID' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @Get(':id')
