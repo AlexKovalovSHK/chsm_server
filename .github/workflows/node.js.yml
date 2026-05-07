@@ -28,35 +28,36 @@ jobs:
           bun-version: latest
 
       # Шаг 3: Установка зависимостей
+      # Это нужно для корректной работы Prisma и проверки зависимостей перед сборкой образа
       - run: bun install --frozen-lockfile
 
-      # Шаг 4: Сборка проекта (компиляция TypeScript)
-      - run: bun run build
+      # --- ШАГ 4 УДАЛЕН (nest build больше не нужен, так как Bun запускает src/main.ts напрямую) ---
 
-      # Шаг 5: Установка Docker Buildx
+      # Шаг 4: Установка Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Шаг 6: Сборка Docker-образа
+      # Шаг 5: Сборка Docker-образа
+      # Теперь вся магия происходит здесь внутри Dockerfile
       - name: Build Docker image
         run: |
           docker build -t $DOCKER_IMAGE:latest .
 
-      # Шаг 7: Сохранение Docker-образа в tar-файл
+      # Шаг 6: Сохранение Docker-образа в tar-файл
       - name: Save Docker image
         run: |
           docker save $DOCKER_IMAGE:latest -o $DOCKER_IMAGE.tar
 
-      # Шаг 8: Установка sshpass
+      # Шаг 7: Установка sshpass
       - name: Install sshpass
         run: |
           sudo apt-get update
           sudo apt-get install -y sshpass
 
-      # Шаг 9: Копирование файлов на удаленный сервер
+      # Шаг 8: Копирование файлов на удаленный сервер
       - name: Copy files to remote server
         run: |
-          # Создаем директорию перед копированием, чтобы scp не выдал ошибку
+          # Создаем директорию перед копированием
           sshpass -p "${{ secrets.SUDO_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "mkdir -p $DEPLOY_DIR"
           # Копируем образ и docker-compose
           sshpass -p "${{ secrets.SUDO_PASSWORD }}" scp -o StrictHostKeyChecking=no $DOCKER_IMAGE.tar ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:$DEPLOY_DIR
@@ -71,25 +72,26 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y sshpass
 
-      # Шаг 1: Подготовка папок и прав (КЛЮЧЕВОЙ МОМЕНТ ДЛЯ СОХРАНЕНИЯ ДАННЫХ)
+      # Шаг 1: Подготовка папок и деплой
       - name: Prepare environment and deploy
         run: |
           sshpass -p "${{ secrets.SUDO_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "
             cd $DEPLOY_DIR &&
             
-            # Создаем папку data, если её нет. Она НЕ удалится при деплое.
-            mkdir -p data &&
-            # Даем права на папку, чтобы Docker (внутри которого может быть другой пользователь) мог писать в БД
-            chmod 777 data &&
+            # Создаем папку data для БД и папку для бэкапов, чтобы они были постоянными (Persistent)
+            mkdir -p data backups_history &&
+            chmod 777 data backups_history &&
             
             # Загружаем образ из архива
             docker load -i $DOCKER_IMAGE.tar &&
             
             # Перезапускаем контейнер
-            # down удаляет контейнер, но НЕ трогает примонтированные папки (volumes)
             docker-compose down && 
             docker-compose up -d &&
             
-            # Очистка старых неиспользуемых образов, чтобы не забивать диск
+            # Удаляем временный tar файл после загрузки, чтобы не занимать место
+            rm $DOCKER_IMAGE.tar &&
+            
+            # Очистка старых неиспользуемых образов
             docker image prune -f
           "
