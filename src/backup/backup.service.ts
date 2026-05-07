@@ -1,7 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { $ } from 'bun';
+// @ts-ignore
+const { $ } = Bun;
 import { mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
