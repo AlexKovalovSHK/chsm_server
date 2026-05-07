@@ -5,7 +5,8 @@
 
 .env
 neon_secrets.md
-
+backups_history
+backup_*
 # Logs
 logs
 *.log

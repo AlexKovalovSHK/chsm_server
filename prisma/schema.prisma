@@ -160,7 +160,7 @@ model Enrollment {
   enrolledAt   DateTime         @default(now()) @map("enrolled_at")
   status       EnrollmentStatus @default(ENROLLED)
 
-  student      Student      @relation(fields: [studentId], references: [id])
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   sessionRun   SessionRun   @relation(fields: [sessionRunId], references: [id])
   gradeEntries GradeEntry[]
   gradebooks   Gradebook[]
@@ -176,7 +176,7 @@ model GradeEntry {
   source       String? // Например, "Google Classroom" или "Manual"
   recordedAt   DateTime @default(now()) @map("recorded_at")
 
-  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   subject    Subject    @relation(fields: [subjectId], references: [id])
 
   @@map("grade_entries")
@@ -189,7 +189,7 @@ model Gradebook {
   approvedAt   DateTime?       @map("approved_at")
   approvedBy   String?         @map("approved_by") // ID админа или имя
 
-  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
 
   @@map("gradebooks")
 }

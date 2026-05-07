@@ -17,12 +17,14 @@ import { SubjectModule } from './subjects/subject.module';
 import { EnrollmentModule } from './enrollments/enrollment.module';
 import { GradeEntryModule } from './grades/entries/grade-entry.module';
 import { GradebookModule } from './grades/gradebooks/gradebook.module';
+import { BackupModule } from './backup/backup.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
-
+    BackupModule,
     ScheduleModule.forRoot(),
     UsersModule,
     AuthModule,
