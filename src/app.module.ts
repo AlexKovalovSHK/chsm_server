@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { DynamicModule, Module } from '@nestjs/common';
 
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
@@ -19,13 +19,54 @@ import { GradeEntryModule } from './grades/entries/grade-entry.module';
 import { GradebookModule } from './grades/gradebooks/gradebook.module';
 import { BackupModule } from './backup/backup.module';
 
-@Module({
+@Module({})
+export class AppModule {
+  static register(): DynamicModule {
+    // Загружаем .env файл вручную до проверки
+    require('dotenv').config();
+    const isDev = process.env.DEV === 'true';
+    
+    const imports = [
+      ScheduleModule.forRoot(),
+      ConfigModule.forRoot({ isGlobal: true }),
+      PrismaModule,
+      UsersModule,
+      AuthModule,
+      TelegramModule,
+      ClassroomModule,
+      AcademicYearModule,
+      SessionLevelModule,
+      SessionRunModule,
+      StudentModule,
+      SubjectModule,
+      EnrollmentModule,
+      GradeEntryModule,
+      GradebookModule
+    ];
+
+    if (!isDev) {
+      console.log('✅ Добавляем BackupModule в imports');
+      imports.push(BackupModule);
+    } else {
+      console.log('❌ BackupModule НЕ добавлен (DEV режим)');
+    }
+
+    return {
+      module: AppModule,
+      imports,
+      controllers: [AppController],
+      providers: [AppService],
+    };
+  }
+}
+
+
+/*@Module({
   imports: [
     ScheduleModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
-    BackupModule,
-    ScheduleModule.forRoot(),
+    ...(process.env.DEV !== 'true' ? [BackupModule] : []),
     UsersModule,
     AuthModule,
     TelegramModule,
@@ -42,5 +83,5 @@ import { BackupModule } from './backup/backup.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule { }*/
 

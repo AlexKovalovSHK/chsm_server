@@ -2,13 +2,20 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import * as cookieParser from 'cookie-parser';
+import * as dotenv from 'dotenv';
 import basicAuth from 'express-basic-auth';
+
+dotenv.config();
+
+// Для отладки - проверяем значение
+console.log('=== ENV LOADED ===');
+console.log('DEV =', process.env.DEV);
+console.log('==================');
 
 async function bootstrap() {
   const PORT = process.env.PORT || 3000;
-  const app = await NestFactory.create(AppModule);
-
+  //const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule.register());
   // Добавляем Basic Auth для Swagger
   app.use(
     ['/api/docs', '/api/docs-json', '/api/docs-download'],
