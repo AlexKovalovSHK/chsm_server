@@ -119,6 +119,112 @@ export class ClassroomService implements OnModuleInit {
     }
   }
 
+  async getAllStudents(tokens: any) {
+    const classroom = this.getClassroom(tokens);
+
+    // 1. Получаем все активные курсы
+    const courses = await this.getAllCourses(tokens);
+
+    // 2. Запускаем параллельное получение списков студентов для всех курсов
+    const studentRequests = courses.map(async (course) => {
+      try {
+        const res = await classroom.courses.students.list({ courseId: course.id! });
+        return res.data.students || [];
+      } catch (error: any) {
+        console.error(`Ошибка при получении студентов курса ${course.id}:`, error.message);
+        return [];
+      }
+    });
+
+    const results = await Promise.all(studentRequests);
+
+    // 3. Собираем всех студентов в плоский массив
+    const allStudentsRaw = results.flat();
+
+    // 4. Удаляем дубликаты, используя Map (ключ — userId)
+    const uniqueStudentsMap = new Map();
+
+    allStudentsRaw.forEach((s) => {
+      if (s.userId && !uniqueStudentsMap.has(s.userId)) {
+        uniqueStudentsMap.set(s.userId, {
+          id: s.userId,
+          name: s.profile?.name?.fullName || 'Без имени',
+          email: s.profile?.emailAddress?.toLowerCase() || '',
+          photo: s.profile?.photoUrl,
+        });
+      }
+    });
+
+    // Превращаем Map обратно в массив
+    return Array.from(uniqueStudentsMap.values());
+  }
+
+  async getStudentGrades(tokens: any, studentEmail: string) {
+    const classroom = this.getClassroom(tokens);
+    
+    // 1. Получаем все активные курсы
+    const coursesRes = await classroom.courses.list({ courseStates: ['ACTIVE'] });
+    const courses = coursesRes.data.courses || [];
+  
+    const studentReport = {
+      profile: null as any,
+      courses: [] as any[],
+    };
+  
+    // 2. Итерируемся по курсам, чтобы найти оценки студента
+    await Promise.all(
+      courses.map(async (course) => {
+        try {
+          // Запрашиваем сабмишены студента в этом курсе
+          // userId: 'email' или 'ID' позволяет фильтровать данные конкретного человека
+          // courseWorkId: '-' означает "все задания в этом курсе"
+          const submissionsRes = await classroom.courses.courseWork.studentSubmissions.list({
+            courseId: course.id!,
+            courseWorkId: '-', 
+            userId: studentEmail,
+          });
+  
+          const submissions = submissionsRes.data.studentSubmissions || [];
+  
+          if (submissions.length > 0) {
+            // Если мы еще не достали профиль, берем его из первого попавшегося сабмишена
+            if (!studentReport.profile) {
+              // Чтобы получить полное имя, можно сделать отдельный запрос, 
+              // но часто в сабмишене ID достаточно для поиска позже
+              studentReport.profile = { email: studentEmail, userId: submissions[0].userId };
+            }
+  
+            // Получаем названия заданий для этого курса, чтобы оценки не были "голыми"
+            const courseWorkRes = await classroom.courses.courseWork.list({ courseId: course.id! });
+            const assignments = courseWorkRes.data.courseWork || [];
+  
+            // Сопоставляем оценку с названием задания
+            const grades = submissions.map((sub) => {
+              const work = assignments.find((w) => w.id === sub.courseWorkId);
+              return {
+                assignmentTitle: work?.title || 'Неизвестное задание',
+                grade: sub.assignedGrade || sub.draftGrade || 'Нет оценки',
+                maxPoints: work?.maxPoints,
+                status: sub.state, // TURNED_IN, RETURNED и т.д.
+                alternateLink: work?.alternateLink // Ссылка на задание
+              };
+            });
+  
+            studentReport.courses.push({
+              courseName: course.name,
+              courseId: course.id,
+              grades: grades,
+            });
+          }
+        } catch (error: any) {
+          // Если студента нет в этом курсе, API выдаст 404/403, просто игнорируем
+        }
+      })
+    );
+  
+    return studentReport;
+  }
+  
   async getCourses(tokens: any) {
     return this.getAllCourses(tokens);
   }
@@ -219,7 +325,7 @@ export class ClassroomService implements OnModuleInit {
   async sendEmail(to: string, subject: string, text: string) {
     const tokens = await this.getAdminTokens();
     this.oauth2Client.setCredentials(tokens);
-    
+
     const gmail = google.gmail({ version: 'v1', auth: this.oauth2Client });
 
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
@@ -231,7 +337,7 @@ export class ClassroomService implements OnModuleInit {
       '',
       text,
     ];
-    
+
     const email = emailLines.join('\r\n').trim();
 
     const encodedMessage = Buffer.from(email)

@@ -160,6 +160,49 @@ export class ClassroomController {
     }
   }
 
+  @ApiOperation({ summary: 'Получить всех уникальных студентов школы' })
+  @Get('admin/students')
+  async getStudents() {
+    try {
+      // 1. Достаем системные токены админа
+      const adminTokens = await this.classroomService.getAdminTokens();
+
+      if (!adminTokens) {
+        return { error: 'Админ не авторизован в системе Google' };
+      }
+
+      // 2. Получаем список уникальных студентов
+      const students = await this.classroomService.getAllStudents(adminTokens);
+
+      return {
+        totalUniqueStudents: students.length,
+        students: students,
+      };
+    } catch (error: any) {
+      return { error: error.message };
+    }
+  }
+
+  @ApiOperation({ summary: 'Получить профиль и все оценки конкретного студента' })
+  @ApiQuery({ name: 'email', description: 'Google Email студента' })
+  @Get('admin/student-grades')
+  async getStudentGrades(@Query('email') email: string) {
+    try {
+      const adminTokens = await this.classroomService.getAdminTokens();
+      if (!adminTokens) return { error: 'Система не авторизована' };
+
+      const report = await this.classroomService.getStudentGrades(adminTokens, email);
+
+      if (!report.profile) {
+        return { message: `Студент с email ${email} не найден ни в одном курсе.` };
+      }
+
+      return report;
+    } catch (error: any) {
+      return { error: error.message };
+    }
+  }
+
   // рассылка на gmail
   @ApiOperation({ summary: 'Рассылка email' })
   @ApiBody({
