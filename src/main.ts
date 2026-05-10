@@ -66,6 +66,7 @@ async function bootstrap() {
 
       const allowedOrigins = [
         'https://chsm.shk.solutions',
+        'https://chsm.pro',
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:3000",
