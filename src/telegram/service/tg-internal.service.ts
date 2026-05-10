@@ -28,7 +28,13 @@ export class TgInternalService {
   async syncUserData(dto: NewUserTgDto) {
     const { tgId, ...updateData } = dto;
 
-    let user = await this.userService.findByTgId(tgId);
+    let user;
+    try {
+      // Ищем пользователя, но не даем исключению 404 убить процесс
+      user = await this.userService.findByTgId(tgId);
+    } catch (e) {
+      user = null; // Пользователь еще не зарегистрирован
+    } 
 
     if (!user) {
       // Если пользователя нет, создаем новую запись с начальными данными
