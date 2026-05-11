@@ -1,7 +1,9 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AdminAndTeacherGuard } from './auth/guards/admin_and_teacher.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -65,7 +67,13 @@ export class AppModule {
       module: AppModule,
       imports,
       controllers: [AppController],
-      providers: [AppService],
+      providers: [
+        AppService,
+        {
+          provide: APP_GUARD,
+          useClass: AdminAndTeacherGuard,
+        },
+      ],
     };
   }
 }

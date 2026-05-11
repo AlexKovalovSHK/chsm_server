@@ -10,8 +10,9 @@ import {
 } from '@nestjs/common';
 import express from 'express';
 import { ClassroomService } from '../service/classroom.service';
-import { UserService } from '../../users/application/user.service'; // Путь к вашему сервису пользователей
+import { UserService } from '../../users/application/user.service';
 import { ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Public } from '../../auth/decorators/public.decorator';
 
 @ApiTags('Classroom')
 @Controller('auth')
@@ -25,6 +26,7 @@ export class ClassroomController {
 
   // 1. Ссылка на вход теперь должна принимать tgId
   // Пример: http://localhost:5001/auth/login?tgId=12345678
+  @Public()
   @ApiOperation({ summary: 'Редирект на Google login по tgId' })
   @ApiQuery({ name: 'tgId', required: true })
   @Get('login')
@@ -37,6 +39,7 @@ export class ClassroomController {
     return res.redirect(url);
   }
 
+  @Public()
   @ApiOperation({ summary: 'Редирект на Google login по email' })
   @ApiQuery({ name: 'email', required: true })
   @Get('login-email')
@@ -50,6 +53,7 @@ export class ClassroomController {
   }
 
   // 2. Обработка возврата от Google
+  @Public()
   @ApiOperation({ summary: 'Callback от Google OAuth' })
   @ApiQuery({ name: 'code', required: true })
   @ApiQuery({ name: 'state', required: true })
