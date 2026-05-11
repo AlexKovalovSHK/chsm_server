@@ -21,11 +21,11 @@ import { EnrollmentModule } from './enrollments/enrollment.module';
 import { GradeEntryModule } from './grades/entries/grade-entry.module';
 import { GradebookModule } from './grades/gradebooks/gradebook.module';
 import { BackupModule } from './backup/backup.module';
+import { McpModule } from './mcp/mcp.module';
 
 @Module({})
 export class AppModule {
   static register(): DynamicModule {
-    // Загружаем .env файл вручную до проверки
     require('dotenv').config();
     const isDev = process.env.DEV === 'true';
 
@@ -54,6 +54,7 @@ export class AppModule {
       EnrollmentModule,
       GradeEntryModule,
       GradebookModule,
+      McpModule,
     ];
 
     if (!isDev) {
