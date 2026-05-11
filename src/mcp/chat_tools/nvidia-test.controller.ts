@@ -6,7 +6,7 @@ import express from 'express';
 export class NvidiaTestController {
   private readonly logger = new Logger(NvidiaTestController.name);
   private readonly INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
-  private readonly API_KEY = process.env.KIMI_API_KEY || '';
+  private readonly API_KEY = process.env.NVIDIA_API_KEY || '';
 
   // ── Вспомогательный метод: общий SSE-стрим к NVIDIA API ──────────────────
   private createStream(
