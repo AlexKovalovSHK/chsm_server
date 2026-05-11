@@ -1,4 +1,13 @@
-import { Controller, Get, Query, Res, Inject, Post, forwardRef, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  Res,
+  Inject,
+  Post,
+  forwardRef,
+  Body,
+} from '@nestjs/common';
 import express from 'express';
 import { ClassroomService } from '../service/classroom.service';
 import { UserService } from '../../users/application/user.service'; // Путь к вашему сервису пользователей
@@ -12,7 +21,7 @@ export class ClassroomController {
     private readonly classroomService: ClassroomService,
     @Inject(forwardRef(() => UserService))
     private readonly userService: UserService, // ПРАВИЛЬНЫЙ ИНЖЕКТ
-  ) { }
+  ) {}
 
   // 1. Ссылка на вход теперь должна принимать tgId
   // Пример: http://localhost:5001/auth/login?tgId=12345678
@@ -57,7 +66,12 @@ export class ClassroomController {
       }
 
       // Опционально: все равно сохраняем данные в профиль пользователя
-      await this.userService.saveGoogleTokens(state, profile.email || '', tokens, profile);
+      await this.userService.saveGoogleTokens(
+        state,
+        profile.email || '',
+        tokens,
+        profile,
+      );
 
       return `<h1>✅ Система настроена!</h1><p>Админский доступ ${profile.email} активен.</p>`;
     } catch (error) {
@@ -100,7 +114,10 @@ export class ClassroomController {
   @ApiOperation({ summary: 'Форсировать синхронизацию (deprecated)' })
   @Post('sync')
   async forceSync() {
-    return { message: 'Синхронизация курсов больше не требуется, данные берутся напрямую из Google Classroom.' };
+    return {
+      message:
+        'Синхронизация курсов больше не требуется, данные берутся напрямую из Google Classroom.',
+    };
   }
 
   @ApiOperation({ summary: 'Опубликовать объявление о боте' })
@@ -119,14 +136,25 @@ export class ClassroomController {
 
   // 1. Получить полный отчет по всей школе (Live Data из Google)
   @ApiOperation({ summary: 'Получить live-отчет школы' })
+  @ApiQuery({
+    name: 'refresh',
+    required: false,
+    description: 'Установите true, чтобы принудительно обновить кэш',
+  })
   @Get('admin/live-report')
-  async getLiveReport() {
+  async getLiveReport(@Query('refresh') refresh?: string) {
     try {
       // Платформа сама берет системный токен админа
       const adminTokens = await this.classroomService.getAdminTokens();
 
-      // Запрашиваем данные напрямую из Google
-      const report = await this.classroomService.getLiveFullState(adminTokens);
+      // Если refresh === 'true', передаем forceRefresh = true
+      const forceRefresh = refresh === 'true';
+
+      // Запрашиваем данные (из кэша или напрямую из Google)
+      const report = await this.classroomService.getLiveFullState(
+        adminTokens,
+        forceRefresh,
+      );
 
       return report;
     } catch (error: any) {
@@ -138,7 +166,10 @@ export class ClassroomController {
   @ApiOperation({ summary: 'Синхронизация курсов (deprecated)' })
   @Post('admin/sync-courses')
   async syncAll() {
-    return { message: 'Синхронизация курсов больше не требуется, данные берутся напрямую из Google Classroom.' };
+    return {
+      message:
+        'Синхронизация курсов больше не требуется, данные берутся напрямую из Google Classroom.',
+    };
   }
 
   // 3. Отправить объявление во все курсы сразу
@@ -154,7 +185,10 @@ export class ClassroomController {
   async announceAll(@Body('text') text: string) {
     try {
       const adminTokens = await this.classroomService.getAdminTokens();
-      return await this.classroomService.postAnnouncementToAll(adminTokens, text);
+      return await this.classroomService.postAnnouncementToAll(
+        adminTokens,
+        text,
+      );
     } catch (error: any) {
       return { error: error.message };
     }
@@ -183,7 +217,9 @@ export class ClassroomController {
     }
   }
 
-  @ApiOperation({ summary: 'Получить профиль и все оценки конкретного студента' })
+  @ApiOperation({
+    summary: 'Получить профиль и все оценки конкретного студента',
+  })
   @ApiQuery({ name: 'email', description: 'Google Email студента' })
   @Get('admin/student-grades')
   async getStudentGrades(@Query('email') email: string) {
@@ -191,10 +227,15 @@ export class ClassroomController {
       const adminTokens = await this.classroomService.getAdminTokens();
       if (!adminTokens) return { error: 'Система не авторизована' };
 
-      const report = await this.classroomService.getStudentGrades(adminTokens, email);
+      const report = await this.classroomService.getStudentGrades(
+        adminTokens,
+        email,
+      );
 
       if (!report.profile) {
-        return { message: `Студент с email ${email} не найден ни в одном курсе.` };
+        return {
+          message: `Студент с email ${email} не найден ни в одном курсе.`,
+        };
       }
 
       return report;
@@ -218,7 +259,7 @@ export class ClassroomController {
   })
   @Post('broadcast-email')
   async broadcastEmail(
-    @Body() dto: { users: string[]; subject?: string; text: string }
+    @Body() dto: { users: string[]; subject?: string; text: string },
   ) {
     const results = {
       sent: 0,
@@ -234,23 +275,18 @@ export class ClassroomController {
 
       try {
         // Вызываем метод сервиса
-        await this.classroomService.sendEmail(
-          cleanEmail,
-          subject,
-          dto.text
-        );
+        await this.classroomService.sendEmail(cleanEmail, subject, dto.text);
 
         results.sent++;
       } catch (e: any) {
         results.failed++;
         results.errors.push({
           email: cleanEmail,
-          error: e.message
+          error: e.message,
         });
       }
     }
 
     return { success: true, results };
   }
-
 }

@@ -1,5 +1,6 @@
 import { DynamicModule, Module } from '@nestjs/common';
-
+import { CacheModule } from '@nestjs/cache-manager';
+import { redisStore } from 'cache-manager-redis-yet';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -25,10 +26,19 @@ export class AppModule {
     // Загружаем .env файл вручную до проверки
     require('dotenv').config();
     const isDev = process.env.DEV === 'true';
-    
+
     const imports = [
       ScheduleModule.forRoot(),
       ConfigModule.forRoot({ isGlobal: true }),
+      CacheModule.registerAsync({
+        isGlobal: true,
+        useFactory: async () => ({
+          store: await redisStore({
+            url: process.env.REDIS_URL,
+            ttl: 3600000, // 1 час
+          }),
+        }),
+      }),
       PrismaModule,
       UsersModule,
       AuthModule,
@@ -41,7 +51,7 @@ export class AppModule {
       SubjectModule,
       EnrollmentModule,
       GradeEntryModule,
-      GradebookModule
+      GradebookModule,
     ];
 
     if (!isDev) {
@@ -59,7 +69,6 @@ export class AppModule {
     };
   }
 }
-
 
 /*@Module({
   imports: [
@@ -84,4 +93,3 @@ export class AppModule {
   providers: [AppService],
 })
 export class AppModule { }*/
-
