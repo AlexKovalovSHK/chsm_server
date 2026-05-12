@@ -19,7 +19,7 @@ import { SessionRunModule } from './sessions/sessions_runs/session-run.module';
 import { StudentModule } from './students/student.module';
 import { SubjectModule } from './subjects/subject.module';
 import { EnrollmentModule } from './enrollments/enrollment.module';
-import { GradeEntryModule } from './grades/entries/grade-entry.module';
+import { GradeModule } from './grade/grade.module';
 import { GradebookModule } from './grades/gradebooks/gradebook.module';
 import { BackupModule } from './backup/backup.module';
 
@@ -76,7 +76,7 @@ export class AppModule {
       StudentModule,
       SubjectModule,
       EnrollmentModule,
-      GradeEntryModule,
+      GradeModule,
       GradebookModule,
       McpSmModule,
     ];
