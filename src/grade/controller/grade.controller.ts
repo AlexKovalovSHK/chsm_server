@@ -1,4 +1,17 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UsePipes, ValidationPipe, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  UsePipes,
+  ValidationPipe,
+  HttpCode,
+  HttpStatus,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { GradeService } from '../service/grade.service';
 import { CreateGradeDto } from '../dto/create-grade.dto';
 import { UpdateGradeDto } from '../dto/update-grade.dto';
@@ -21,28 +34,35 @@ export class GradeController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<GradeEntry> {
-    return this.gradeService.findGradeById(id);
+  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<GradeEntry> {
+    return this.gradeService.findGradeById(id) as any;
   }
 
   @Get('enrollment/:enrollmentId')
-  async findByEnrollmentId(@Param('enrollmentId') enrollmentId: string): Promise<GradeEntry[]> {
+  async findByEnrollmentId(
+    @Param('enrollmentId', ParseUUIDPipe) enrollmentId: string,
+  ): Promise<GradeEntry[]> {
     return this.gradeService.findGradesByEnrollmentId(enrollmentId);
   }
 
   @Get('subject/:subjectId')
-  async findBySubjectId(@Param('subjectId') subjectId: string): Promise<GradeEntry[]> {
+  async findBySubjectId(
+    @Param('subjectId', ParseUUIDPipe) subjectId: string,
+  ): Promise<GradeEntry[]> {
     return this.gradeService.findGradesBySubjectId(subjectId);
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() updateGradeDto: UpdateGradeDto): Promise<GradeEntry> {
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateGradeDto: UpdateGradeDto,
+  ): Promise<GradeEntry> {
     return this.gradeService.updateGrade(id, updateGradeDto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string): Promise<void> {
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.gradeService.deleteGrade(id);
   }
 }

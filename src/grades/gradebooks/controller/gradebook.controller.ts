@@ -23,7 +23,7 @@ export class GradebookController {
   async create(@Body() createDto: CreateGradebookDto) {
     return await this.gradebookService.create(createDto);
   }
-
+ф
   @ApiOperation({ summary: 'Получить список табелей' })
   @Get()
   async findAll() {
