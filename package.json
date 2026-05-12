@@ -21,6 +21,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@hono/node-server": "^2.0.2",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@nestjs/cache-manager": "^3.1.2",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
