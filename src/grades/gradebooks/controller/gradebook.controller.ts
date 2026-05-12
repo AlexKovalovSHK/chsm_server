@@ -1,13 +1,13 @@
-import { 
-    Controller, 
-    Get, 
-    Post, 
-    Body, 
-    Patch, 
-    Param, 
-    Delete, 
-    ParseUUIDPipe 
-  } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { GradebookService } from '../service/gradebook.service';
 import { CreateGradebookDto } from '../dto/create-gradebook.dto';
 import { UpdateGradebookDto } from '../dto/update-gradebook.dto';
@@ -41,8 +41,8 @@ export class GradebookController {
   @ApiParam({ name: 'id', format: 'uuid' })
   @Patch(':id')
   async update(
-    @Param('id', ParseUUIDPipe) id: string, 
-    @Body() updateDto: UpdateGradebookDto
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateDto: UpdateGradebookDto,
   ) {
     return await this.gradebookService.update(id, updateDto);
   }

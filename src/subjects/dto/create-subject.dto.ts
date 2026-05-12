@@ -1,4 +1,11 @@
-import { IsString, IsInt, IsOptional, IsUUID, IsNotEmpty, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  IsOptional,
+  IsUUID,
+  IsNotEmpty,
+  IsBoolean,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSubjectDto {

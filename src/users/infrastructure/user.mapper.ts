@@ -7,10 +7,10 @@ import { UserResponseDto } from '../application/dto/user-response.dto';
 
 export class UserMapper {
   static toDomain(doc: PrismaUser): User {
-    // We use mongoId as the domain id string representation, 
+    // We use mongoId as the domain id string representation,
     // or fallback to the auto-incremented id as string if missing (for legacy or test reasons)
     const domainIdStr = doc.mongoId || doc.id.toString();
-    
+
     return User.reconstitute({
       id: UserID.fromString(domainIdStr),
       firstName: doc.firstName || '',
@@ -37,7 +37,12 @@ export class UserMapper {
     });
   }
 
-  static toPersistence(user: User): Omit<Prisma.UserCreateInput, 'id' | 'createdAt' | 'updatedAt' | 'mongoId'> {
+  static toPersistence(
+    user: User,
+  ): Omit<
+    Prisma.UserCreateInput,
+    'id' | 'createdAt' | 'updatedAt' | 'mongoId'
+  > {
     return {
       firstName: user.firstName,
       lastName: user.lastName,
@@ -48,7 +53,9 @@ export class UserMapper {
       tgId: user.tgId || null,
       role: user.role.toString(),
       status: user.status.toString(),
-      googleTokens: user.googleTokens ? (user.googleTokens as Prisma.InputJsonValue) : Prisma.JsonNull,
+      googleTokens: user.googleTokens
+        ? (user.googleTokens as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
       languageCode: user.languageCode || null,
       registrationStep: user.registrationStep,
       isVerified: user.isVerified,
@@ -83,4 +90,3 @@ export class UserMapper {
     };
   }
 }
-

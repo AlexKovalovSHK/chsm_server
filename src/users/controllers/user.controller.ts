@@ -35,7 +35,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-
 @ApiTags('Users')
 @ApiBearerAuth()
 @Controller('api/users')
@@ -46,7 +45,7 @@ export class UserController {
     private readonly userService: UserService,
     private readonly classroomService: ClassroomService,
     private readonly botApiService: BotApiService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     if (!process.env.GOOGLE_CLIENT_ID) {
@@ -201,9 +200,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Изменить пароль текущего пользователя' })
   @ApiBody({ type: ChangePasswordDto })
-  async changePassword(
-    @Body() changePasswordDto: ChangePasswordDto,
-  ) {
+  async changePassword(@Body() changePasswordDto: ChangePasswordDto) {
     await this.userService.changePassword(changePasswordDto);
     return { message: 'Пароль успешно изменен' };
   }
@@ -257,7 +254,7 @@ export class UserController {
 
     await this.botApiService.sendMessage(
       tgId,
-      `🔐 Ваш код для сброса пароля: <b>${code}</b>. Действует 15 минут.`
+      `🔐 Ваш код для сброса пароля: <b>${code}</b>. Действует 15 минут.`,
     );
 
     return { message: 'Код отправлен в ваш Telegram' };
@@ -271,5 +268,4 @@ export class UserController {
     await this.userService.resetPasswordWithCode(dto);
     return { message: 'Пароль успешно изменен' };
   }
-
 }

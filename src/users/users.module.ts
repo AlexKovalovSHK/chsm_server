@@ -6,7 +6,6 @@ import { PrismaUserRepository } from './infrastructure/prisma-user.repository';
 import { TelegramModule } from '../telegram/tg.module';
 
 @Module({
-
   imports: [
     forwardRef(() => ClassroomModule),
     forwardRef(() => TelegramModule),

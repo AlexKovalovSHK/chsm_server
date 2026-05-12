@@ -20,22 +20,20 @@ export class NewUserDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  tgId?:string;
+  tgId?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  username?:string;
-
-
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
-  registrationStep?:string;
+  username?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  status?:string;
+  registrationStep?: string;
 
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  status?: string;
 }

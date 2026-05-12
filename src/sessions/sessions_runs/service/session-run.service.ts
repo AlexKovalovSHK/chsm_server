@@ -10,16 +10,16 @@ export class SessionRunService {
   async create(dto: CreateSessionRunDto) {
     return this.prisma.sessionRun.create({
       data: dto,
-      include: { level: true, academicYear: true, subjects: true }
+      include: { level: true, academicYear: true, subjects: true },
     });
   }
 
   async findAll() {
     return this.prisma.sessionRun.findMany({
-      include: { 
-        level: true, 
+      include: {
+        level: true,
         academicYear: true,
-        subjects: true
+        subjects: true,
       },
     });
   }
@@ -27,7 +27,7 @@ export class SessionRunService {
   async findOne(id: string) {
     const run = await this.prisma.sessionRun.findUnique({
       where: { id },
-      include: { level: true, academicYear: true, subjects: true }
+      include: { level: true, academicYear: true, subjects: true },
     });
     if (!run) throw new NotFoundException(`SessionRun with ID ${id} not found`);
     return run;
@@ -38,7 +38,7 @@ export class SessionRunService {
     return this.prisma.sessionRun.update({
       where: { id },
       data: dto,
-      include: { level: true, academicYear: true, subjects: true }
+      include: { level: true, academicYear: true, subjects: true },
     });
   }
 

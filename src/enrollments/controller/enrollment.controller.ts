@@ -1,13 +1,13 @@
-import { 
-    Controller, 
-    Get, 
-    Post, 
-    Body, 
-    Patch, 
-    Param, 
-    Delete, 
-    ParseUUIDPipe 
-  } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { EnrollmentService } from '../service/enrollment.service';
 import { CreateEnrollmentDto } from '../dto/create-enrollment.dto';
 import { UpdateEnrollmentDto } from '../dto/update-enrollment.dto';
@@ -47,8 +47,8 @@ export class EnrollmentController {
   @ApiParam({ name: 'id', format: 'uuid' })
   @Patch(':id')
   async update(
-    @Param('id', ParseUUIDPipe) id: string, 
-    @Body() updateDto: UpdateEnrollmentDto
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateDto: UpdateEnrollmentDto,
   ) {
     return await this.enrollmentService.update(id, updateDto);
   }

@@ -108,6 +108,7 @@ model Student {
   instrument      String
   specialization  String
   name            String
+  nameRu          String
   city            String?
   country         String?
   telegramId      String?  @unique @map("telegram_id")

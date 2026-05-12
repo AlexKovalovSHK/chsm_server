@@ -1,11 +1,22 @@
-import { Controller, Post, Body, Sse, MessageEvent, HttpException, HttpStatus, Logger, Res } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Sse,
+  MessageEvent,
+  HttpException,
+  HttpStatus,
+  Logger,
+  Res,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import express from 'express';
 
 @Controller('nvidia-test')
 export class NvidiaTestController {
   private readonly logger = new Logger(NvidiaTestController.name);
-  private readonly INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+  private readonly INVOKE_URL =
+    'https://integrate.api.nvidia.com/v1/chat/completions';
   private readonly API_KEY = process.env.NVIDIA_API_KEY || '';
 
   // ── Вспомогательный метод: общий SSE-стрим к NVIDIA API ──────────────────
@@ -31,8 +42,8 @@ export class NvidiaTestController {
           const response = await fetch(this.INVOKE_URL, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${this.API_KEY}`,
-              'Accept': 'text/event-stream',
+              Authorization: `Bearer ${this.API_KEY}`,
+              Accept: 'text/event-stream',
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
@@ -128,7 +139,8 @@ export class NvidiaTestController {
   @Sse('gpt-oss')
   streamGptOss(
     @Body('content') content: string,
-    @Body('reasoning_effort') reasoningEffort: 'low' | 'medium' | 'high' = 'medium',
+    @Body('reasoning_effort')
+    reasoningEffort: 'low' | 'medium' | 'high' = 'medium',
     @Res() res: express.Response,
   ): Observable<MessageEvent> {
     return this.createStream(res, 'openai/gpt-oss-20b', content, {
@@ -157,7 +169,7 @@ export class NvidiaTestController {
       const response = await fetch(this.INVOKE_URL, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.API_KEY}`,
+          Authorization: `Bearer ${this.API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

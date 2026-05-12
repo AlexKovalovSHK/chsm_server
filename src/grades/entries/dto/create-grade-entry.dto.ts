@@ -1,4 +1,10 @@
-import { IsUUID, IsInt, IsString, IsOptional, IsDateString } from 'class-validator';
+import {
+  IsUUID,
+  IsInt,
+  IsString,
+  IsOptional,
+  IsDateString,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateGradeEntryDto {
@@ -19,7 +25,9 @@ export class CreateGradeEntryDto {
   @IsOptional()
   source?: string;
 
-  @ApiPropertyOptional({ description: 'Дата выставления оценки в формате ISO-8601' })
+  @ApiPropertyOptional({
+    description: 'Дата выставления оценки в формате ISO-8601',
+  })
   @IsDateString()
   @IsOptional()
   recordedAt?: string;

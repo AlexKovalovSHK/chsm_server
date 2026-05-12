@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { User } from '../domain/user.entity';
-import { IUserRepository, UserFilter } from '../domain/user.repository.interface';
+import {
+  IUserRepository,
+  UserFilter,
+} from '../domain/user.repository.interface';
 import { UserMapper } from './user.mapper';
 import { Prisma } from '@prisma/client';
 
@@ -55,7 +58,7 @@ export class PrismaUserRepository implements IUserRepository {
       where,
       orderBy: { createdAt: 'desc' },
     });
-    
+
     return docs.map((doc) => UserMapper.toDomain(doc));
   }
 
@@ -81,8 +84,11 @@ export class PrismaUserRepository implements IUserRepository {
 
   async save(user: User): Promise<User> {
     const persistence = UserMapper.toPersistence(user);
-    console.log(`💾 Saving user ${user.id.toString()}:`, JSON.stringify(persistence, null, 2));
-    
+    console.log(
+      `💾 Saving user ${user.id.toString()}:`,
+      JSON.stringify(persistence, null, 2),
+    );
+
     const mongoId = user.id.toString();
 
     const doc = await this.prisma.user.upsert({

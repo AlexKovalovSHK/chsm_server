@@ -34,14 +34,14 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  
+
   // Эндпоинт для скачивания JSON
   app.getHttpAdapter().get('/api/docs-download', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', 'attachment; filename="swagger.json"');
     res.send(document);
   });
-  
+
   // Эндпоинт для скачивания YAML
   app.getHttpAdapter().get('/api/docs-download/yaml', (req, res) => {
     const yaml = require('js-yaml');
@@ -67,14 +67,15 @@ async function bootstrap() {
       const allowedOrigins = [
         'https://chsm.shk.solutions',
         'https://chsm.pro',
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:5008",
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:5008',
       ];
 
-      const isAllowed = allowedOrigins.includes(origin) ||
+      const isAllowed =
+        allowedOrigins.includes(origin) ||
         origin.startsWith('http://localhost:') ||
         origin.startsWith('chrome-extension://');
 

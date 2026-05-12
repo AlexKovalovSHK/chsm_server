@@ -42,11 +42,11 @@ export class HttpAdapterFactory {
   private static isExpressRequest(req: any): boolean {
     return Boolean(
       req &&
-        typeof req === 'object' &&
-        typeof req.get === 'function' &&
-        req.method !== undefined &&
-        req.url !== undefined &&
-        !req.routeOptions, // Fastify-specific property
+      typeof req === 'object' &&
+      typeof req.get === 'function' &&
+      req.method !== undefined &&
+      req.url !== undefined &&
+      !req.routeOptions, // Fastify-specific property
     );
   }
 
@@ -56,12 +56,12 @@ export class HttpAdapterFactory {
   private static isExpressResponse(res: any): boolean {
     return Boolean(
       res &&
-        typeof res === 'object' &&
-        typeof res.status === 'function' &&
-        typeof res.json === 'function' &&
-        typeof res.send === 'function' &&
-        res.headersSent !== undefined &&
-        !res.sent, // Fastify-specific property
+      typeof res === 'object' &&
+      typeof res.status === 'function' &&
+      typeof res.json === 'function' &&
+      typeof res.send === 'function' &&
+      res.headersSent !== undefined &&
+      !res.sent, // Fastify-specific property
     );
   }
 
@@ -71,10 +71,10 @@ export class HttpAdapterFactory {
   private static isFastifyRequest(req: any): boolean {
     return Boolean(
       req &&
-        typeof req === 'object' &&
-        req.routeOptions !== undefined && // Fastify-specific property
-        req.method !== undefined &&
-        req.url !== undefined,
+      typeof req === 'object' &&
+      req.routeOptions !== undefined && // Fastify-specific property
+      req.method !== undefined &&
+      req.url !== undefined,
     );
   }
 
@@ -84,11 +84,11 @@ export class HttpAdapterFactory {
   private static isFastifyReply(res: any): boolean {
     return Boolean(
       res &&
-        typeof res === 'object' &&
-        typeof res.status === 'function' &&
-        typeof res.send === 'function' &&
-        typeof res.header === 'function' &&
-        res.sent !== undefined, // Fastify-specific property
+      typeof res === 'object' &&
+      typeof res.status === 'function' &&
+      typeof res.send === 'function' &&
+      typeof res.header === 'function' &&
+      res.sent !== undefined, // Fastify-specific property
     );
   }
 }

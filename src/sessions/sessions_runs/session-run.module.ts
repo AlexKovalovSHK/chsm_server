@@ -7,6 +7,6 @@ import { SessionRunService } from './service/session-run.service';
   imports: [PrismaModule],
   controllers: [SessionRunController],
   providers: [SessionRunService],
-  exports: [SessionRunService]
+  exports: [SessionRunService],
 })
 export class SessionRunModule {}

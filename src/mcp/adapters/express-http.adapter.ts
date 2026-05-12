@@ -16,7 +16,7 @@ export class ExpressHttpAdapter implements HttpAdapter {
       headers: req.headers as Record<string, string | string[] | undefined>,
       query: req.query,
       body: req.body,
-      params: req.params as Record<string, string>, 
+      params: req.params as Record<string, string>,
       get: (name: string) => req.get(name),
       raw: req,
     };

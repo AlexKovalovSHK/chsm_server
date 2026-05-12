@@ -34,7 +34,7 @@ export class GoogleAuthService {
       where: { isActive: true },
     });
     if (!auth) throw new Error('Системный Google токен не найден');
-    
+
     return {
       access_token: auth.accessToken,
       refresh_token: auth.refreshToken,

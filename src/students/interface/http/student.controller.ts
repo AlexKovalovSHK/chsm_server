@@ -1,16 +1,16 @@
-import { 
-    Controller, 
-    Get, 
-    Post, 
-    Body, 
-    Patch, 
-    Param, 
-    Delete, 
-    ParseUUIDPipe 
-  } from '@nestjs/common';
-import { StudentService } from '../service/student.service';
-import { CreateStudentDto } from '../dto/create-student.dto';
-import { UpdateStudentDto } from '../dto/update-student.dto';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseUUIDPipe,
+} from '@nestjs/common';
+import { StudentService } from '../../application/student.service';
+import { CreateStudentDto } from '../../application/dto/create-student.dto';
+import { UpdateStudentDto } from '../../application/dto/update-student.dto';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Students')
@@ -22,7 +22,7 @@ export class StudentController {
   @Post()
   async create(@Body() createDto: CreateStudentDto) {
     console.log(createDto);
-    
+
     return await this.studentService.create(createDto);
   }
 
@@ -43,8 +43,8 @@ export class StudentController {
   @ApiParam({ name: 'id', format: 'uuid' })
   @Patch(':id')
   async update(
-    @Param('id', ParseUUIDPipe) id: string, 
-    @Body() updateDto: UpdateStudentDto
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateDto: UpdateStudentDto,
   ) {
     return await this.studentService.update(id, updateDto);
   }

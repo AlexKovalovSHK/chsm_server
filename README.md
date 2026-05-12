@@ -10,7 +10,10 @@ The primary goal of this system is to manage students and teachers across multip
 1. **User Management (DDD Pattern)**:
    - Full CRUD for users with roles (`student`, `admin`, etc.).
    - Stores Telegram ID (`tgId`) and Google ID (`googleId`) to unify user identity.
-2. **Google Classroom Integration**:
+2. **Student Management (DDD + Onion Architecture)**:
+   - Clean separation of concerns using Domain, Application, Infrastructure, and Interface layers.
+   - Decoupled from persistence (Prisma) through Repository interfaces.
+3. **Google Classroom Integration**:
    - OAuth2 authorization flow.
    - Syncs active courses, students, and teachers.
    - Fetches coursework and grades.
@@ -41,6 +44,11 @@ src/
 ├── telegram/               # Telegram bot and messaging logic
 │   ├── controller/         # Webhooks & internal REST API (e.g. broadcasting)
 │   └── service/            # Bot API interaction and user sync logic
+├── students/               # Student domain (DDD + Onion Architecture)
+│   ├── domain/             # Entities and Repository interfaces
+│   ├── application/        # Use Cases, Application Services, and DTOs
+│   ├── infrastructure/     # Persistence implementation (Prisma) and Mappers
+│   └── interface/          # HTTP Controllers and entry points
 └── users/                  # Core user domain
     ├── application/        # Application services and DTOs (UserService, Mappers)
     ├── controllers/        # REST API for users

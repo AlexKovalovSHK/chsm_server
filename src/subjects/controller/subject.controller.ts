@@ -1,13 +1,13 @@
-import { 
-    Controller, 
-    Get, 
-    Post, 
-    Body, 
-    Patch, 
-    Param, 
-    Delete, 
-    ParseUUIDPipe 
-  } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { SubjectService } from '../service/subject.service';
 import { CreateSubjectDto } from '../dto/create-subject.dto';
 import { UpdateSubjectDto } from '../dto/update-subject.dto';
@@ -41,8 +41,8 @@ export class SubjectController {
   @ApiParam({ name: 'id', format: 'uuid' })
   @Patch(':id')
   async update(
-    @Param('id', ParseUUIDPipe) id: string, 
-    @Body() updateDto: UpdateSubjectDto
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateDto: UpdateSubjectDto,
   ) {
     return await this.subjectService.update(id, updateDto);
   }

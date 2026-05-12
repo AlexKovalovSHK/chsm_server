@@ -41,7 +41,10 @@ export class BotApiService {
         res.on('end', () => {
           try {
             const parsedData = JSON.parse(data);
-            if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
+            if (
+              res.statusCode &&
+              (res.statusCode < 200 || res.statusCode >= 300)
+            ) {
               reject({
                 response: {
                   status: res.statusCode,

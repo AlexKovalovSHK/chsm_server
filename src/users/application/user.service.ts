@@ -133,7 +133,6 @@ export class UserService {
     return this.repo.save(newUser);
   }
 
-
   async softDelete(id: string) {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Пользователь не найден');
@@ -259,37 +258,47 @@ export class UserService {
   }
 
   // В UserService
-async generateResetCode(email: string) {
-  const user = await this.repo.findByEmail(email.toLowerCase().trim());
-  if (!user) throw new NotFoundException('Пользователь с таким Email не найден');
-  if (!user.tgId) throw new BadRequestException('Аккаунт не привязан к Telegram. Обратитесь в поддержку.');
+  async generateResetCode(email: string) {
+    const user = await this.repo.findByEmail(email.toLowerCase().trim());
+    if (!user)
+      throw new NotFoundException('Пользователь с таким Email не найден');
+    if (!user.tgId)
+      throw new BadRequestException(
+        'Аккаунт не привязан к Telegram. Обратитесь в поддержку.',
+      );
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 знаков
-  const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 минут
+    const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 знаков
+    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 минут
 
-  user.setResetCode(code, expires);
-  await this.repo.save(user);
+    user.setResetCode(code, expires);
+    await this.repo.save(user);
 
-  return { code, tgId: user.tgId };
-}
-
-async resetPasswordWithCode(dto: ResetPasswordDto) {
-  const user = await this.repo.findByEmail(dto.email.toLowerCase().trim());
-  if (!user) throw new NotFoundException('Пользователь не найден');
-
-  const savedCode = user.metadata.resetCode;
-  const expires = user.metadata.resetCodeExpires ? new Date(user.metadata.resetCodeExpires as string) : null;
-
-  if (!savedCode || savedCode !== dto.code || !expires || expires < new Date()) {
-    throw new BadRequestException('Неверный или просроченный код');
+    return { code, tgId: user.tgId };
   }
 
-  const saltRounds = 10;
-  const passwordHash = await bcrypt.hash(dto.newPassword, saltRounds);
-  user.setPassword(passwordHash);
-  user.clearResetCode();
+  async resetPasswordWithCode(dto: ResetPasswordDto) {
+    const user = await this.repo.findByEmail(dto.email.toLowerCase().trim());
+    if (!user) throw new NotFoundException('Пользователь не найден');
 
-  await this.repo.save(user);
-}
+    const savedCode = user.metadata.resetCode;
+    const expires = user.metadata.resetCodeExpires
+      ? new Date(user.metadata.resetCodeExpires as string)
+      : null;
 
+    if (
+      !savedCode ||
+      savedCode !== dto.code ||
+      !expires ||
+      expires < new Date()
+    ) {
+      throw new BadRequestException('Неверный или просроченный код');
+    }
+
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(dto.newPassword, saltRounds);
+    user.setPassword(passwordHash);
+    user.clearResetCode();
+
+    await this.repo.save(user);
+  }
 }

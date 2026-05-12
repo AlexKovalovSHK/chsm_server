@@ -160,9 +160,10 @@ export class User {
   }
 
   updateDetails(
-    props: Partial<
-      Omit<UserProps, 'id' | 'role' | 'status'>
-    > & { status?: string; role?: string },
+    props: Partial<Omit<UserProps, 'id' | 'role' | 'status'>> & {
+      status?: string;
+      role?: string;
+    },
   ) {
     const { status, role, ...other } = props;
 

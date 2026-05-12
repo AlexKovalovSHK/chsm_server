@@ -1,4 +1,9 @@
-import { Injectable, ConflictException, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { UserService } from '../../users/application/user.service';
 import { NewUserTgDto } from 'src/users/application/dto/new-user-tg.dto';
 
@@ -6,7 +11,7 @@ import { NewUserTgDto } from 'src/users/application/dto/new-user-tg.dto';
 export class TgInternalService {
   private readonly logger = new Logger(TgInternalService.name);
 
-  constructor(private readonly userService: UserService) { } // Внедряем UserService
+  constructor(private readonly userService: UserService) {} // Внедряем UserService
 
   // 1. Создание или обновление при входе в бот
   async upsertFromTelegram(data: {
@@ -16,7 +21,7 @@ export class TgInternalService {
     lastName?: string;
     languageCode?: string;
   }) {
-    // Используем существующий метод в UserService, 
+    // Используем существующий метод в UserService,
     // но можно расширить его или использовать общий find/update
     return this.userService.upsertFromTelegram({
       id: Number(data.tgId),
@@ -34,7 +39,7 @@ export class TgInternalService {
       user = await this.userService.findByTgId(tgId);
     } catch (e) {
       user = null; // Пользователь еще не зарегистрирован
-    } 
+    }
 
     if (!user) {
       // Если пользователя нет, создаем новую запись с начальными данными
@@ -45,7 +50,7 @@ export class TgInternalService {
         firstName: updateData.firstName,
         lastName: updateData.lastName,
         registrationStep: updateData.registrationStep || 'new',
-        status: 'pending'
+        status: 'pending',
       });
     } else {
       // Если пользователь есть, просто обновляем пришедшие поля
@@ -61,7 +66,7 @@ export class TgInternalService {
     if (!user) throw new NotFoundException('User not found');
 
     return this.userService.update(user.id.toString(), {
-      registrationStep: step
+      registrationStep: step,
     });
   }
 
@@ -71,7 +76,9 @@ export class TgInternalService {
 
     // Проверка дубликата через UserService
     const users = await this.userService.findAll({ search: normalizedEmail });
-    const isEmailBusy = users.some(u => u.email === normalizedEmail && u.tgId !== tgId);
+    const isEmailBusy = users.some(
+      (u) => u.email === normalizedEmail && u.tgId !== tgId,
+    );
 
     if (isEmailBusy) {
       throw new ConflictException('Email already in use');
