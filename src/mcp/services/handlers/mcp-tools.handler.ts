@@ -1,0 +1,256 @@
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import {
+  CallToolRequestSchema,
+  ErrorCode,
+  ListToolsRequestSchema,
+  McpError,
+} from '@modelcontextprotocol/sdk/types.js';
+import { Inject, Injectable, Scope } from '@nestjs/common';
+import { ContextIdFactory, ModuleRef } from '@nestjs/core';
+import { McpRegistryService } from '../mcp-registry.service';
+import { McpHandlerBase } from './mcp-handler.base';
+import { ZodType } from 'zod';
+import { HttpRequest } from '../../interfaces/http-adapter.interface';
+import { ToolAuthorizationService } from '../tool-authorization.service';
+import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-schema-compat.js';
+import { normalizeObjectSchema } from '@modelcontextprotocol/sdk/server/zod-compat.js';
+import type { McpOptions } from '../../interfaces/mcp-options.interface';
+
+@Injectable({ scope: Scope.REQUEST })
+export class McpToolsHandler extends McpHandlerBase {
+  private readonly moduleHasGuards: boolean;
+
+  constructor(
+    moduleRef: ModuleRef,
+    registry: McpRegistryService,
+    @Inject('MCP_MODULE_ID') private readonly mcpModuleId: string,
+    @Inject('MCP_OPTIONS') private readonly options: McpOptions,
+    private readonly authService: ToolAuthorizationService,
+  ) {
+    super(moduleRef, registry, McpToolsHandler.name, options);
+    this.moduleHasGuards =
+      this.options.guards !== undefined && this.options.guards.length > 0;
+  }
+
+  private buildDefaultContentBlock(result: any) {
+    return [
+      {
+        type: 'text',
+        text: JSON.stringify(result),
+      },
+    ];
+  }
+
+  private formatToolResult(result: any, outputSchema?: ZodType): any {
+    if (result && typeof result === 'object' && Array.isArray(result.content)) {
+      return result;
+    }
+
+    if (outputSchema) {
+      const validation = outputSchema.safeParse(result);
+      if (!validation.success) {
+        throw new McpError(
+          ErrorCode.InternalError,
+          `Tool result does not match outputSchema: ${validation.error.message}`,
+        );
+      }
+      return {
+        structuredContent: result,
+        content: this.buildDefaultContentBlock(result),
+      };
+    }
+
+    return {
+      content: this.buildDefaultContentBlock(result),
+    };
+  }
+
+  registerHandlers(mcpServer: McpServer, httpRequest: HttpRequest) {
+    if (this.registry.getTools(this.mcpModuleId).length === 0) {
+      this.logger.debug('No tools registered, skipping tool handlers');
+      return;
+    }
+
+    mcpServer.server.setRequestHandler(ListToolsRequestSchema, () => {
+      // Extract user from request (may be undefined if not authenticated or STDIO)
+      // For STDIO transport, httpRequest.raw is undefined, so bypass auth entirely
+      const user = httpRequest.raw ? (httpRequest.raw as any).user : undefined;
+
+      // Get all tools and filter based on user permissions
+      // STDIO: If no httpRequest.raw, disable guards (local dev mode)
+      const allTools = this.registry.getTools(this.mcpModuleId);
+      const effectiveModuleHasGuards = httpRequest.raw
+        ? this.moduleHasGuards
+        : false;
+      const allowUnauthenticatedAccess =
+        this.options.allowUnauthenticatedAccess ?? false;
+      const authorizedTools = allTools.filter((tool) =>
+        this.authService.canAccessTool(
+          user,
+          tool,
+          effectiveModuleHasGuards,
+          allowUnauthenticatedAccess,
+        ),
+      );
+
+      const tools = authorizedTools.map((tool) => {
+        // Create base schema
+        const toolSchema = {
+          name: tool.metadata.name,
+          description: tool.metadata.description,
+          annotations: tool.metadata.annotations,
+          _meta: tool.metadata._meta,
+        };
+
+        // Add security schemes
+        const securitySchemes = this.authService.generateSecuritySchemes(
+          tool,
+          effectiveModuleHasGuards,
+        );
+        if (securitySchemes.length > 0) {
+          toolSchema['securitySchemes'] = securitySchemes;
+          // Note: Currently securitySchemes are not supported in MCP sdk, adding to _meta as workaround
+          // (see https://developers.openai.com/apps-sdk/reference/)
+          toolSchema._meta = {
+            ...toolSchema._meta,
+            securitySchemes,
+          };
+        }
+
+        // Add input schema if defined
+        const normalizedInputParameters = normalizeObjectSchema(
+          tool.metadata.parameters,
+        );
+        if (normalizedInputParameters) {
+          toolSchema['inputSchema'] = toJsonSchemaCompat(
+            normalizedInputParameters,
+          );
+        }
+
+        // Add output schema if defined, ensuring it has type: 'object'
+        const normalizedOutputSchema = normalizeObjectSchema(
+          tool.metadata.outputSchema,
+        );
+        if (normalizedOutputSchema) {
+          const outputSchema = toJsonSchemaCompat(normalizedOutputSchema);
+
+          // Create a new object that explicitly includes type: 'object'
+          const jsonSchema = {
+            ...outputSchema,
+            type: 'object',
+          };
+
+          toolSchema['outputSchema'] = jsonSchema;
+        }
+
+        return toolSchema;
+      });
+
+      return {
+        tools,
+      };
+    });
+
+    mcpServer.server.setRequestHandler(
+      CallToolRequestSchema,
+      async (request) => {
+        this.logger.debug('CallToolRequestSchema is being called');
+
+        const toolInfo = this.registry.findTool(
+          this.mcpModuleId,
+          request.params.name,
+        );
+
+        if (!toolInfo) {
+          throw new McpError(
+            ErrorCode.MethodNotFound,
+            `Unknown tool: ${request.params.name}`,
+          );
+        }
+
+        // Validate authorization before execution
+        // For STDIO transport, bypass auth entirely (local dev mode)
+        const user = httpRequest.raw
+          ? (httpRequest.raw as any).user
+          : undefined;
+        const effectiveModuleHasGuards = httpRequest.raw
+          ? this.moduleHasGuards
+          : false;
+        const allowUnauthenticatedAccess =
+          this.options.allowUnauthenticatedAccess ?? false;
+        this.authService.validateToolAccess(
+          user,
+          toolInfo,
+          effectiveModuleHasGuards,
+          allowUnauthenticatedAccess,
+        );
+
+        try {
+          // Validate input parameters against the tool's schema
+          if (toolInfo.metadata.parameters) {
+            const validation = toolInfo.metadata.parameters.safeParse(
+              request.params.arguments || {},
+            );
+            if (!validation.success) {
+              throw new McpError(
+                ErrorCode.InvalidParams,
+                `Invalid parameters: ${validation.error.message}`,
+              );
+            }
+            // Use validated arguments to ensure defaults and transformations are applied
+            request.params.arguments = validation.data as Record<
+              string,
+              unknown
+            >;
+          }
+
+          const contextId = ContextIdFactory.getByRequest(httpRequest);
+          this.moduleRef.registerRequestByContextId(httpRequest, contextId);
+
+          const toolInstance = await this.moduleRef.resolve(
+            toolInfo.providerClass,
+            contextId,
+            { strict: false },
+          );
+
+          const context = this.createContext(mcpServer, request);
+
+          if (!toolInstance) {
+            throw new McpError(
+              ErrorCode.MethodNotFound,
+              `Unknown tool: ${request.params.name}`,
+            );
+          }
+
+          const result = await toolInstance[toolInfo.methodName].call(
+            toolInstance,
+            request.params.arguments,
+            context,
+            httpRequest.raw as any,
+          );
+
+          const transformedResult = this.formatToolResult(
+            result,
+            toolInfo.metadata.outputSchema,
+          );
+
+          this.logger.debug(transformedResult, 'CallToolRequestSchema result');
+
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+          return transformedResult;
+        } catch (error) {
+          this.logger.error(error);
+          // Re-throw McpErrors (like validation errors) so they are handled by the MCP protocol layer
+          if (error instanceof McpError) {
+            throw error;
+          }
+          // For other errors, return formatted error response
+          return {
+            content: [{ type: 'text', text: error.message }],
+            isError: true,
+          };
+        }
+      },
+    );
+  }
+}
