@@ -14,12 +14,15 @@ export class GradeService implements GradeIService {
   }
 
   async findAllGrades(): Promise<GradeEntry[]> {
-    return this.prisma.gradeEntry.findMany();
+    return this.prisma.gradeEntry.findMany({
+      include: { subject: true },
+    });
   }
 
   async findGradeById(id: string): Promise<GradeEntry | null> {
     const grade = await this.prisma.gradeEntry.findUnique({
       where: { id },
+      include: { subject: true },
     });
     if (!grade) {
       throw new NotFoundException(`Grade with ID "${id}" not found`);
@@ -30,12 +33,14 @@ export class GradeService implements GradeIService {
   async findGradesByEnrollmentId(enrollmentId: string): Promise<GradeEntry[]> {
     return this.prisma.gradeEntry.findMany({
       where: { enrollmentId },
+      include: { subject: true },
     });
   }
 
   async findGradesBySubjectId(subjectId: string): Promise<GradeEntry[]> {
     return this.prisma.gradeEntry.findMany({
       where: { subjectId },
+      include: { subject: true },
     });
   }
 
@@ -51,6 +56,7 @@ export class GradeService implements GradeIService {
     return this.prisma.gradeEntry.update({
       where: { id },
       data,
+      include: { subject: true },
     });
   }
 
@@ -65,6 +71,7 @@ export class GradeService implements GradeIService {
 
     return this.prisma.gradeEntry.delete({
       where: { id },
+      include: { subject: true },
     });
   }
 }

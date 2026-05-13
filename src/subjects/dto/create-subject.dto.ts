@@ -5,6 +5,8 @@ import {
   IsUUID,
   IsNotEmpty,
   IsBoolean,
+  Min,
+  Max,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -41,4 +43,18 @@ export class CreateSubjectDto {
   @IsBoolean()
   @IsOptional()
   hasClassroom?: boolean;
+
+  @ApiProperty({
+    example: 100,
+    description: 'The maximum scale for grades in this subject',
+  })
+  @IsInt()
+  @IsNotEmpty()
+  @Min(1)
+  @Max(3)
+  scale: number;
+
+  @ApiPropertyOptional({ example: true })
+  @IsBoolean()
+  isCore: boolean;
 }

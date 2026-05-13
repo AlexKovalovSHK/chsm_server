@@ -146,6 +146,8 @@ model Subject {
   classroomCourseworkId String? @map("classroom_coursework_id")
   hasClassroom          Boolean @default(false) @map("has_classroom")
   sessionRunId          String  @map("session_run_id") @db.Uuid
+  scale                 Int
+  isCore                Boolean @default(false) @map("is_core")
 
   level        SessionLevel @relation(fields: [levelId], references: [id])
   sessionRun   SessionRun   @relation(fields: [sessionRunId], references: [id])
