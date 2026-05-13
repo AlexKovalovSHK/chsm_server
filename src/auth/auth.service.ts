@@ -8,7 +8,7 @@ import * as bcrypt from 'bcrypt';
 import { UserService } from '../users/application/user.service';
 import { UserMapper } from '../users/infrastructure/user.mapper';
 import { LoginResult } from './auth.types';
-import { LoginDto } from './dto/login.dto';
+import { LoginByTgDto, LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
@@ -47,6 +47,24 @@ export class AuthService {
     return {
       accessToken,
       user: UserMapper.toResponseDto(user),
+    };
+  }
+
+  async loginByTg(dto: LoginByTgDto): Promise<LoginResult> {
+    const user = await this.userService.findByTgId(dto.tgId);
+
+    if (!user) {
+      throw new UnauthorizedException('Пользователь не найден');
+    }
+
+    const accessToken = this.jwtService.sign({
+      sub: user.id.toString(),
+      role: user.role.toString(),
+    });
+
+    return {
+      accessToken,
+      user: UserMapper.toResponseDto(user), // ← как в login()
     };
   }
 }

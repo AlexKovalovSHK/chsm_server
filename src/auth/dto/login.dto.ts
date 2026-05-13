@@ -15,3 +15,13 @@ export class LoginDto {
   @IsNotEmpty({ message: 'password не может быть пустым' })
   password: string;
 }
+
+export class LoginByTgDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  tgId: string;
+
+  @ApiProperty({ required: false })
+  initData?: string; // для верификации на проде
+}

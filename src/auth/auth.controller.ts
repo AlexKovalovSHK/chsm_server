@@ -3,7 +3,7 @@ import { Controller, Post, Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import type { LoginResult } from './auth.types';
-import { LoginDto } from './dto/login.dto';
+import { LoginByTgDto, LoginDto } from './dto/login.dto';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Auth')
@@ -19,4 +19,13 @@ export class AuthController {
   async login(@Body() dto: LoginDto): Promise<LoginResult> {
     return this.authService.login(dto);
   }
+
+  @Public()
+@ApiOperation({ summary: 'Логин через Telegram' })
+@ApiBody({ type: LoginByTgDto })
+@ApiResponse({ status: 200, description: 'Успешная авторизация' })
+@Post('login/tg')
+async loginByTg(@Body() dto: LoginByTgDto): Promise<LoginResult> {
+  return this.authService.loginByTg(dto);
+}
 }
