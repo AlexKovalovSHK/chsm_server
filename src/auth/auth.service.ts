@@ -9,6 +9,7 @@ import { UserService } from '../users/application/user.service';
 import { UserMapper } from '../users/infrastructure/user.mapper';
 import { LoginResult } from './auth.types';
 import { LoginByTgDto, LoginDto } from './dto/login.dto';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -67,4 +68,6 @@ export class AuthService {
       user: UserMapper.toResponseDto(user), // ← как в login()
     };
   }
+
+
 }
