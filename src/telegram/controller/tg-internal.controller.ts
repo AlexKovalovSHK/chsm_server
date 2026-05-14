@@ -15,6 +15,7 @@ import { BotApiService } from '../service/bot-api.service';
 import { NewUserTgDto } from 'src/users/application/dto/new-user-tg.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { Public } from '../../auth/decorators/public.decorator';
 
 @ApiTags('Telegram internal')
 @Controller('internal/users')
@@ -25,12 +26,14 @@ export class TgInternalController {
     private readonly botApiService: BotApiService,
   ) {}
 
+  @Public()
   @ApiOperation({ summary: 'Создать/обновить пользователя из Telegram' })
   @Post('upsert')
   async upsert(@Body() data: any) {
     return await this.tgInternalService.upsertFromTelegram(data);
   }
 
+  @Public()
   @ApiOperation({ summary: 'Получить пользователя по tgId' })
   @ApiParam({ name: 'tgId' })
   @Get('by-tg/:tgId')
@@ -39,12 +42,14 @@ export class TgInternalController {
     return await this.userService.findByTgId(tgId);
   }
 
+  @Public()
   @ApiOperation({ summary: 'Синхронизировать данные пользователя из Telegram' })
   @Patch('sync')
   async sync(@Body() dto: NewUserTgDto) {
     return await this.tgInternalService.syncUserData(dto);
   }
 
+  @Public()
   @ApiOperation({ summary: 'Обновить шаг регистрации' })
   @ApiBody({
     schema: {
@@ -61,6 +66,7 @@ export class TgInternalController {
     );
   }
 
+  @Public()
   @ApiOperation({ summary: 'Привязать email к Telegram-пользователю' })
   @ApiBody({
     schema: {
@@ -74,6 +80,7 @@ export class TgInternalController {
     return await this.tgInternalService.linkEmail(dto.tgId, dto.email);
   }
 
+  @Public()
   @ApiOperation({ summary: 'Пометить пользователя как заблокированного' })
   @ApiBody({
     schema: {
