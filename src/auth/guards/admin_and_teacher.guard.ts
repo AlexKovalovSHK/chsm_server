@@ -6,10 +6,13 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { ROLES_KEY } from '../decorators/roles.decorator';
 
 @Injectable()
 export class AdminAndTeacherGuard extends JwtAuthGuard {
   private readonly roleReflector: Reflector;
+
+  static readonly DEFAULT_ROLES = ['admin', 'teacher'];
 
   constructor(reflector: Reflector) {
     super(reflector);
@@ -34,7 +37,7 @@ export class AdminAndTeacherGuard extends JwtAuthGuard {
         return false;
       }
 
-      // Step 3: Check that the user has role 'admin' or 'teacher'
+      // Step 3: Check roles
       const request = context
         .switchToHttp()
         .getRequest<{ user: { role: string } }>();
@@ -44,10 +47,17 @@ export class AdminAndTeacherGuard extends JwtAuthGuard {
         throw new ForbiddenException('Доступ запрещён: роль не определена');
       }
 
-      const allowedRoles = ['admin', 'teacher'];
+      // Если на контроллере/методе указан @Roles() — используем его,
+      // иначе — стандартные роли (admin, teacher)
+      const allowedRoles =
+        this.roleReflector.getAllAndOverride<string[]>(ROLES_KEY, [
+          context.getHandler(),
+          context.getClass(),
+        ]) ?? AdminAndTeacherGuard.DEFAULT_ROLES;
+
       if (!allowedRoles.includes(user.role)) {
         throw new ForbiddenException(
-          `Доступ запрещён: требуется роль admin или teacher, текущая роль — ${user.role}`,
+          `Доступ запрещён: требуется роль ${allowedRoles.join(' или ')}, текущая роль — ${user.role}`,
         );
       }
 

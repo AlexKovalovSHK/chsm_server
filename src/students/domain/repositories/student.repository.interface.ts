@@ -7,4 +7,5 @@ export abstract class IStudentRepository {
   abstract findByUserId(userId: string): Promise<Student | null>;
   abstract update(student: Student): Promise<Student>;
   abstract remove(id: string): Promise<void>;
+  abstract getStudentWithFullRelations(id: string): Promise<any>;
 }

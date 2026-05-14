@@ -8,6 +8,7 @@ import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { Student } from '../domain/entities/student.entity';
 import { randomUUID } from 'crypto';
+import { StudentFullReportDto } from './dto/student_full_reaport.dto';
 
 @Injectable()
 export class StudentService {
@@ -50,6 +51,97 @@ export class StudentService {
       throw new NotFoundException(`Student with ID ${id} not found`);
     }
     return student;
+  }
+
+  async findOneByUserId(userId: string): Promise<Student> {
+    const student = await this.studentRepository.findByUserId(userId);
+    if (!student) {
+      throw new NotFoundException(`Student with ID ${userId} not found`);
+    }
+    return student;
+  }
+
+  async fullreportByStudentId(id: string): Promise<StudentFullReportDto> {
+    const studentData =
+      await this.studentRepository.getStudentWithFullRelations(id);
+
+    if (!studentData) {
+      throw new NotFoundException(`Student with ID ${id} not found`);
+    }
+
+    const studentResp = {
+      id: studentData.id,
+      userId: studentData.userId,
+      instrument: studentData.instrument,
+      specialization: studentData.specialization,
+      name: studentData.name,
+      nameRu: studentData.nameRu,
+      city: studentData.city,
+      country: studentData.country,
+      telegramId: studentData.telegramId,
+      classroomUserId: studentData.classroomUserId,
+      enrolledAt: studentData.enrolledAt,
+    };
+
+    const academicYearsMap = new Map<string, any>();
+
+    for (const enrollment of studentData.enrollments || []) {
+      const sessionRun = enrollment.sessionRun;
+      if (!sessionRun) continue;
+
+      const ay = sessionRun.academicYear;
+      if (!ay) continue;
+
+      if (!academicYearsMap.has(ay.id)) {
+        academicYearsMap.set(ay.id, {
+          id: ay.id,
+          label: ay.label,
+          startsAt: ay.startsAt,
+          endsAt: ay.endsAt,
+          sessionRuns: [],
+        });
+      }
+
+      const academicYearDto = academicYearsMap.get(ay.id)!;
+
+      const subjectsDto = (sessionRun.subjects || []).map((subject: any) => {
+        const gradeEntry = (enrollment.gradeEntries || []).find(
+          (g: any) => g.subjectId === subject.id,
+        );
+
+        return {
+          id: subject.id,
+          levelId: subject.levelId,
+          title: subject.title,
+          teacherName: subject.teacherName,
+          hours: subject.hours,
+          classroomCourseworkId: subject.classroomCourseworkId,
+          hasClassroom: subject.hasClassroom,
+          sessionRunId: subject.sessionRunId,
+          scale: subject.scale,
+          isCore: subject.isCore,
+          level: subject.level?.number,
+          grade: gradeEntry ? gradeEntry.value : undefined,
+        };
+      });
+
+      academicYearDto.sessionRuns.push({
+        id: sessionRun.id,
+        levelId: sessionRun.levelId,
+        academicYearId: sessionRun.academicYearId,
+        classroomCourseId: sessionRun.classroomCourseId,
+        status: sessionRun.status,
+        level: sessionRun.level?.title,
+        subjects: subjectsDto,
+      });
+    }
+
+    const academicYear = Array.from(academicYearsMap.values());
+
+    return {
+      student: studentResp,
+      academicYear,
+    };
   }
 
   async update(id: string, dto: UpdateStudentDto) {

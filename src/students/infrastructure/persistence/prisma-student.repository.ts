@@ -62,4 +62,28 @@ export class PrismaStudentRepository implements IStudentRepository {
       where: { id },
     });
   }
+
+  async getStudentWithFullRelations(id: string): Promise<any> {
+    return this.prisma.student.findUnique({
+      where: { id },
+      include: {
+        enrollments: {
+          include: {
+            sessionRun: {
+              include: {
+                academicYear: true,
+                level: true,
+                subjects: {
+                  include: {
+                    level: true,
+                  },
+                },
+              },
+            },
+            gradeEntries: true,
+          },
+        },
+      },
+    });
+  }
 }
