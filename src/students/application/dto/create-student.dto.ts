@@ -55,4 +55,16 @@ export class CreateStudentDto {
   @IsDateString()
   @IsOptional()
   enrolledAt?: string;
+
+  @ApiProperty({ example: 'GB-12345' })
+  @IsString()
+  @IsNotEmpty()
+  gradebookNumber: string;
+
+  @ApiPropertyOptional({
+    description: 'Дата выдачи зачетки в формате ISO-8601',
+  })
+  @IsDateString()
+  @IsOptional()
+  gradebookIssuedAt?: string;
 }

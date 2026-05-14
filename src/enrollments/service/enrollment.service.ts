@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateEnrollmentDto } from '../dto/create-enrollment.dto';
 import { UpdateEnrollmentDto } from '../dto/update-enrollment.dto';
+import { ApprovedEnrollment } from '../dto/apruve-enrollment.dto';
 
 @Injectable()
 export class EnrollmentService {
@@ -12,6 +13,7 @@ export class EnrollmentService {
       data: {
         ...dto,
         enrolledAt: dto.enrolledAt ? new Date(dto.enrolledAt) : undefined,
+        approvedAt: dto.approvedAt ? new Date(dto.approvedAt) : undefined,
       },
       include: { student: true, sessionRun: true },
     });
@@ -47,6 +49,19 @@ export class EnrollmentService {
       data: {
         ...dto,
         enrolledAt: dto.enrolledAt ? new Date(dto.enrolledAt) : undefined,
+        approvedAt: dto.approvedAt ? new Date(dto.approvedAt) : undefined,
+      },
+      include: { student: true, sessionRun: true },
+    });
+  }
+
+  async approve(id: string, dto: ApprovedEnrollment) {
+    await this.findOne(id);
+    return this.prisma.enrollment.update({
+      where: { id },
+      data: {
+        approvedAt: new Date(),
+        approvedBy: dto.approvedBy,
       },
       include: { student: true, sessionRun: true },
     });

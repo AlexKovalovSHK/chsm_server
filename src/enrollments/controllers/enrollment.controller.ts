@@ -11,6 +11,7 @@ import {
 import { EnrollmentService } from '../service/enrollment.service';
 import { CreateEnrollmentDto } from '../dto/create-enrollment.dto';
 import { UpdateEnrollmentDto } from '../dto/update-enrollment.dto';
+import { ApprovedEnrollment } from '../dto/apruve-enrollment.dto';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Enrollments')
@@ -58,5 +59,15 @@ export class EnrollmentController {
   @Delete(':id')
   async remove(@Param('id', ParseUUIDPipe) id: string) {
     return await this.enrollmentService.remove(id);
+  }
+
+  @ApiOperation({ summary: 'Одобрить (аппрувить) зачисление' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @Patch(':id/approve')
+  async approve(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ApprovedEnrollment,
+  ) {
+    return await this.enrollmentService.approve(id, dto);
   }
 }

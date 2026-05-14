@@ -15,6 +15,8 @@ export class StudentMapper {
       telegramId: raw.telegramId ?? undefined,
       classroomUserId: raw.classroomUserId ?? undefined,
       enrolledAt: raw.enrolledAt,
+      gradebookNumber: raw.gradebookNumber,
+      gradebookIssuedAt: raw.gradebookIssuedAt,
     });
   }
 
@@ -31,6 +33,8 @@ export class StudentMapper {
       telegramId: student.telegramId ?? null,
       classroomUserId: student.classroomUserId ?? null,
       enrolledAt: student.enrolledAt,
+      gradebookNumber: student.gradebookNumber,
+      gradebookIssuedAt: student.gradebookIssuedAt,
     };
   }
 }

@@ -36,6 +36,10 @@ export class StudentService {
       telegramId: dto.telegramId,
       classroomUserId: dto.classroomUserId,
       enrolledAt: dto.enrolledAt ? new Date(dto.enrolledAt) : new Date(),
+      gradebookNumber: dto.gradebookNumber,
+      gradebookIssuedAt: dto.gradebookIssuedAt
+        ? new Date(dto.gradebookIssuedAt)
+        : new Date(),
     });
 
     return this.studentRepository.create(student);
@@ -81,6 +85,8 @@ export class StudentService {
       telegramId: studentData.telegramId,
       classroomUserId: studentData.classroomUserId,
       enrolledAt: studentData.enrolledAt,
+      gradebookNumber: studentData.gradebookNumber,
+      gradebookIssuedAt: studentData.gradebookIssuedAt,
     };
 
     const academicYearsMap = new Map<string, any>();
@@ -150,6 +156,9 @@ export class StudentService {
     student.updateProfile({
       ...dto,
       enrolledAt: dto.enrolledAt ? new Date(dto.enrolledAt) : undefined,
+      gradebookIssuedAt: dto.gradebookIssuedAt
+        ? new Date(dto.gradebookIssuedAt)
+        : undefined,
     });
 
     return this.studentRepository.update(student);

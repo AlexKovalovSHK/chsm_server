@@ -1,4 +1,11 @@
-import { IsUUID, IsEnum, IsOptional, IsDateString } from 'class-validator';
+import {
+  IsUUID,
+  IsEnum,
+  IsOptional,
+  IsDateString,
+  IsString,
+  IsNotEmpty,
+} from 'class-validator';
 import { EnrollmentStatus } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -20,4 +27,16 @@ export class CreateEnrollmentDto {
   @IsDateString()
   @IsOptional()
   enrolledAt?: string;
+
+  @ApiPropertyOptional({ description: 'Дата подтверждения в формате ISO-8601' })
+  @IsDateString()
+  @IsOptional()
+  approvedAt?: string;
+
+  @ApiProperty({
+    description: 'ID или имя пользователя, подтвердившего зачисление',
+  })
+  @IsString()
+  @IsNotEmpty()
+  approvedBy: string;
 }

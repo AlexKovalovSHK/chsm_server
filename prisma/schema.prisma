@@ -103,17 +103,19 @@ model SessionLevel {
 }
 
 model Student {
-  id              String   @id @default(uuid()) @db.Uuid
-  userId          String   @unique @map("user_id")
-  instrument      String
-  specialization  String
-  name            String
-  nameRu          String
-  city            String?
-  country         String?
-  telegramId      String?  @unique @map("telegram_id")
-  classroomUserId String?  @unique @map("classroom_user_id")
-  enrolledAt      DateTime @default(now()) @map("enrolled_at")
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique @map("user_id")
+  instrument        String
+  specialization    String
+  name              String
+  nameRu            String
+  city              String?
+  country           String?
+  telegramId        String?  @unique @map("telegram_id")
+  classroomUserId   String?  @unique @map("classroom_user_id")
+  enrolledAt        DateTime @default(now()) @map("enrolled_at")
+  gradebookNumber   String   @unique @map("gradebook_number")
+  gradebookIssuedAt DateTime @default(now()) @map("gradebook_issued_at")
 
   user User @relation(fields: [userId], references: [mongoId])
 
@@ -162,11 +164,13 @@ model Enrollment {
   sessionRunId String           @map("session_run_id") @db.Uuid
   enrolledAt   DateTime         @default(now()) @map("enrolled_at")
   status       EnrollmentStatus @default(ENROLLED)
+  approvedAt   DateTime?         @map("approved_at")
+  approvedBy   String?          @map("approved_by")
 
   student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   sessionRun   SessionRun   @relation(fields: [sessionRunId], references: [id])
   gradeEntries GradeEntry[]
-  gradebooks   Gradebook[]
+  Gradebook    Gradebook[]
 
   @@map("enrollments")
 }

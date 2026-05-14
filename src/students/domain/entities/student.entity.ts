@@ -10,6 +10,8 @@ export class Student {
   private _telegramId?: string;
   private _classroomUserId?: string;
   private _enrolledAt: Date;
+  private _gradebookNumber: string;
+  private _gradebookIssuedAt: Date;
 
   constructor(props: {
     id: string;
@@ -23,6 +25,8 @@ export class Student {
     telegramId?: string;
     classroomUserId?: string;
     enrolledAt: Date;
+    gradebookNumber: string;
+    gradebookIssuedAt: Date;
   }) {
     this.validate(props);
 
@@ -37,6 +41,8 @@ export class Student {
     this._telegramId = props.telegramId;
     this._classroomUserId = props.classroomUserId;
     this._enrolledAt = props.enrolledAt;
+    this._gradebookNumber = props.gradebookNumber;
+    this._gradebookIssuedAt = props.gradebookIssuedAt;
   }
 
   private validate(props: any): void {
@@ -46,6 +52,9 @@ export class Student {
     if (!props.specialization) throw new Error('Specialization is required');
     if (!props.name) throw new Error('Name is required');
     if (!props.enrolledAt) throw new Error('Enrollment date is required');
+    if (!props.gradebookNumber) throw new Error('Gradebook number is required');
+    if (!props.gradebookIssuedAt)
+      throw new Error('Gradebook issued at date is required');
   }
 
   // Getters
@@ -93,6 +102,14 @@ export class Student {
     return this._enrolledAt;
   }
 
+  get gradebookNumber(): string {
+    return this._gradebookNumber;
+  }
+
+  get gradebookIssuedAt(): Date {
+    return this._gradebookIssuedAt;
+  }
+
   // Setters / Update methods
   updateProfile(props: {
     instrument?: string;
@@ -104,6 +121,8 @@ export class Student {
     telegramId?: string;
     classroomUserId?: string;
     enrolledAt?: Date;
+    gradebookNumber?: string;
+    gradebookIssuedAt?: Date;
   }): void {
     if (props.instrument) this._instrument = props.instrument;
     if (props.specialization) this._specialization = props.specialization;
@@ -115,6 +134,9 @@ export class Student {
     if (props.classroomUserId !== undefined)
       this._classroomUserId = props.classroomUserId;
     if (props.enrolledAt) this._enrolledAt = props.enrolledAt;
+    if (props.gradebookNumber) this._gradebookNumber = props.gradebookNumber;
+    if (props.gradebookIssuedAt)
+      this._gradebookIssuedAt = props.gradebookIssuedAt;
   }
 
   toJSON() {
@@ -130,6 +152,8 @@ export class Student {
       telegramId: this.telegramId,
       classroomUserId: this.classroomUserId,
       enrolledAt: this.enrolledAt,
+      gradebookNumber: this.gradebookNumber,
+      gradebookIssuedAt: this.gradebookIssuedAt,
     };
   }
 }
