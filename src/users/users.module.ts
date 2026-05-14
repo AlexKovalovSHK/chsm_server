@@ -17,7 +17,7 @@ import { TelegramModule } from '../telegram/tg.module';
       useClass: PrismaUserRepository,
     },
   ],
-  exports: [UserService],
+  exports: [UserService, 'IUserRepository'],
   controllers: [UserController],
 })
 export class UsersModule {}

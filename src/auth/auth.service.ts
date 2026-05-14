@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Inject,
   UnauthorizedException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -7,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UserService } from '../users/application/user.service';
 import { UserMapper } from '../users/infrastructure/user.mapper';
+import * as userRepositoryInterface from '../users/domain/user.repository.interface';
 import { LoginResult } from './auth.types';
 import { LoginByTgDto, LoginDto } from './dto/login.dto';
 import * as crypto from 'crypto';
@@ -16,10 +18,12 @@ export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    @Inject('IUserRepository')
+    private readonly userRepo: userRepositoryInterface.IUserRepository,
   ) {}
 
   async login(dto: LoginDto): Promise<LoginResult> {
-    const user = await this.userService.findByEmail(dto.email);
+    const user = await this.userRepo.findByEmail(dto.email);
 
     if (!user) {
       throw new UnauthorizedException('Неверный email или пароль');
@@ -52,7 +56,7 @@ export class AuthService {
   }
 
   async loginByTg(dto: LoginByTgDto): Promise<LoginResult> {
-    const user = await this.userService.findByTgId(dto.tgId);
+    const user = await this.userRepo.findByTgId(dto.tgId);
 
     if (!user) {
       throw new UnauthorizedException('Пользователь не найден');
@@ -65,9 +69,7 @@ export class AuthService {
 
     return {
       accessToken,
-      user: UserMapper.toResponseDto(user), // ← как в login()
+      user: UserMapper.toResponseDto(user),
     };
   }
-
-
 }

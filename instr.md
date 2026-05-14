@@ -2,6 +2,8 @@
 
 bunx prisma generate
 
+ sudo lsof -ti :5008 | xargs kill -9
+
 ## Что важно понимать
 
 В проекте есть 2 вида токенов:
