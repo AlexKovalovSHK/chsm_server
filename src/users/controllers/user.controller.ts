@@ -16,7 +16,6 @@ import { UserService } from '../application/user.service';
 import { UpdateUserDto } from '../application/dto/update-user.dto';
 import { NewUserDto } from '../application/dto/new-user.dto';
 import { ChangePasswordDto } from '../application/dto/change-password.dto';
-import { UserMapper } from '../infrastructure/user.mapper';
 import { ClassroomService } from '../../classroom/service/classroom.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
@@ -73,8 +72,7 @@ export class UserController {
     @Query('status') status?: string,
     @Query('role') role?: string,
   ) {
-    const users = await this.userService.findAll({ search, status, role });
-    return users.map((user) => UserMapper.toResponseDto(user));
+    return this.userService.findAll({ search, status, role });
   }
 
   @Get('link-url')
@@ -170,21 +168,34 @@ export class UserController {
     return { exists: Boolean(user) };
   }
 
+  @Public()
+  @Get('check-tg-id')
+  @ApiOperation({
+    summary:
+      'Проверить существование пользователя по Telegram ID (для внешних сервисов)',
+  })
+  @ApiQuery({ name: 'tgId', required: true })
+  async checkTgId(@Query('tgId') tgId: string) {
+    if (!tgId?.trim()) {
+      throw new BadRequestException('tgId is required');
+    }
+    const exists = await this.userService.existsByTgId(tgId);
+    return { exists };
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Получить пользователя по ID' })
   @ApiParam({ name: 'id' })
   async findOne(@Param('id') id: string) {
-    const user = await this.userService.findById(id);
-    return UserMapper.toResponseDto(user);
+    return this.userService.findById(id);
   }
 
   @Get('by-tg/:id')
   @ApiOperation({ summary: 'Получить пользователя по Telegram ID' })
   @ApiParam({ name: 'id' })
   async findByTgId(@Param('id') id: string) {
-    const user = await this.userService.findByTgId(id);
-    return UserMapper.toResponseDto(user);
+    return this.userService.findByTgId(id);
   }
 
   @Patch(':id')
@@ -192,8 +203,7 @@ export class UserController {
   @ApiOperation({ summary: 'Обновить пользователя по ID' })
   @ApiParam({ name: 'id' })
   async update(@Param('id') id: string, @Body() updateData: UpdateUserDto) {
-    const updatedUser = await this.userService.update(id, updateData);
-    return UserMapper.toResponseDto(updatedUser);
+    return this.userService.update(id, updateData);
   }
 
   @Patch('me/password')
@@ -233,8 +243,7 @@ export class UserController {
   @ApiOperation({ summary: 'Создать пользователя' })
   @ApiBody({ type: NewUserDto })
   async create(@Body() createUserDto: NewUserDto) {
-    const user = await this.userService.create(createUserDto);
-    return UserMapper.toResponseDto(user);
+    return this.userService.create(createUserDto);
   }
 
   // В AuthController

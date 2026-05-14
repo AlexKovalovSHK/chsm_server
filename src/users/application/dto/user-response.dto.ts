@@ -34,6 +34,9 @@ export class UserResponseDto {
   @ApiProperty({ required: false })
   googleId?: string;
 
+  @ApiProperty({ required: false })
+  googleTokens?: Record<string, any>;
+
   @ApiProperty()
   registrationStep: string;
 

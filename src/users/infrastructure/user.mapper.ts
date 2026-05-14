@@ -83,6 +83,7 @@ export class UserMapper {
       role: user.role.toString(),
       status: user.status.toString(),
       googleId: user.googleId,
+      googleTokens: user.googleTokens,
       registrationStep: user.registrationStep,
       isVerified: user.isVerified,
       isPremium: user.isPremium,

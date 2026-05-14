@@ -14,6 +14,8 @@ import { NewUserDto } from './dto/new-user.dto';
 import * as userRepositoryInterface from '../domain/user.repository.interface';
 import * as bcrypt from 'bcrypt';
 import { ResetPasswordDto } from 'src/auth/dto/reset-password.dto';
+import { UserResponseDto } from './dto/user-response.dto';
+import { UserMapper } from '../infrastructure/user.mapper';
 
 @Injectable()
 export class UserService {
@@ -22,31 +24,44 @@ export class UserService {
     private readonly repo: userRepositoryInterface.IUserRepository,
   ) {}
 
-  async findAll(filters: userRepositoryInterface.UserFilter) {
-    return this.repo.findAll(filters);
+  async findAll(
+    filters: userRepositoryInterface.UserFilter,
+  ): Promise<UserResponseDto[]> {
+    const users = await this.repo.findAll(filters);
+    return users.map((u) => UserMapper.toResponseDto(u));
   }
 
-  async findById(id: string) {
+  async findById(id: string): Promise<UserResponseDto> {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Пользователь не найден');
-    return user;
+    return UserMapper.toResponseDto(user);
   }
 
-  async findByTgId(tgId: string) {
+  async findByTgId(tgId: string): Promise<UserResponseDto> {
     const user = await this.repo.findByTgId(tgId);
     if (!user) throw new NotFoundException('Пользователь не найден');
-    return user;
+    return UserMapper.toResponseDto(user);
   }
 
-  async findByEmail(email: string) {
-    return this.repo.findByEmail(email);
+  async existsByTgId(tgId: string): Promise<boolean> {
+    const user = await this.repo.findByTgId(tgId);
+    return user !== null;
   }
 
-  async findByGoogleId(googleId: string) {
-    return this.repo.findByGoogleId(googleId);
+  async findByEmail(email: string): Promise<UserResponseDto | null> {
+    const user = await this.repo.findByEmail(email);
+    return user ? UserMapper.toResponseDto(user) : null;
   }
 
-  async update(id: string, updateData: UpdateUserDto) {
+  async findByGoogleId(googleId: string): Promise<UserResponseDto | null> {
+    const user = await this.repo.findByGoogleId(googleId);
+    return user ? UserMapper.toResponseDto(user) : null;
+  }
+
+  async update(
+    id: string,
+    updateData: UpdateUserDto,
+  ): Promise<UserResponseDto> {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Пользователь не найден');
 
@@ -58,22 +73,24 @@ export class UserService {
     }
 
     user.updateDetails(updateData);
-    return this.repo.save(user);
+    const saved = await this.repo.save(user);
+    return UserMapper.toResponseDto(saved);
   }
 
-  async changeRole(id: string, role: string) {
+  async changeRole(id: string, role: string): Promise<UserResponseDto> {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Пользователь не найден');
 
     user.changeRole(UserRole.fromString(role));
-    return this.repo.save(user);
+    const saved = await this.repo.save(user);
+    return UserMapper.toResponseDto(saved);
   }
 
   async upsertFromTelegram(tgUser: {
     id: number;
     first_name: string;
     last_name?: string;
-  }) {
+  }): Promise<UserResponseDto> {
     let user = await this.repo.findByTgId(tgUser.id.toString());
 
     if (user) {
@@ -87,7 +104,8 @@ export class UserService {
       });
     }
 
-    return this.repo.save(user);
+    const saved = await this.repo.save(user);
+    return UserMapper.toResponseDto(saved);
   }
 
   async saveGoogleTokens(
@@ -95,7 +113,7 @@ export class UserService {
     googleEmail: string,
     tokens: any,
     profile: any,
-  ) {
+  ): Promise<UserResponseDto> {
     let user: User | null = null;
 
     // 1. Пытаемся найти пользователя по state (tgId или email)
@@ -116,7 +134,8 @@ export class UserService {
     if (user) {
       user.linkGoogle(googleEmail.toLowerCase(), tokens, profile);
       // Метод linkGoogle внутри сущности сам обновит googleId, email и токены
-      return this.repo.save(user);
+      const saved = await this.repo.save(user);
+      return UserMapper.toResponseDto(saved);
     }
 
     // 4. Опционально: Если пользователя нет, можно создать нового (Login with Google)
@@ -130,32 +149,34 @@ export class UserService {
       isVerified: true,
     });
 
-    return this.repo.save(newUser);
+    const created = await this.repo.save(newUser);
+    return UserMapper.toResponseDto(created);
   }
 
-  async softDelete(id: string) {
+  async softDelete(id: string): Promise<void> {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Пользователь не найден');
 
     user.archive();
-    return this.repo.save(user);
+    await this.repo.save(user);
   }
 
-  async findAdmin() {
+  async findAdmin(): Promise<UserResponseDto> {
     const admin = await this.repo.findAdmin();
     if (!admin) {
       throw new NotFoundException(
         'Администратор не найден. Пожалуйста, назначьте роль admin и привяжите Google аккаунт.',
       );
     }
-    return admin;
+    return UserMapper.toResponseDto(admin);
   }
 
-  async findAllForSync() {
-    return this.repo.findAllWithGoogle();
+  async findAllForSync(): Promise<UserResponseDto[]> {
+    const users = await this.repo.findAllWithGoogle();
+    return users.map((u) => UserMapper.toResponseDto(u));
   }
 
-  async create(dto: NewUserDto) {
+  async create(dto: NewUserDto): Promise<UserResponseDto> {
     let passwordHash = '';
     if (dto.email) {
       const cleanEmail = dto.email.toLowerCase().trim();
@@ -174,13 +195,11 @@ export class UserService {
         : UserStatus.ACTIVE,
       password: passwordHash,
     });
-    return this.repo.save(user);
+    const saved = await this.repo.save(user);
+    return UserMapper.toResponseDto(saved);
   }
 
-  // В UserService
-  // ... внутри UserService
-
-  async syncTelegramUser(dto: any) {
+  async syncTelegramUser(dto: any): Promise<UserResponseDto> {
     const { tgId, email, registrationStep, firstName, lastName, username } =
       dto;
 
@@ -215,14 +234,16 @@ export class UserService {
             await this.repo.delete(currentUser.id.toString());
           }
 
-          return this.repo.save(existingUserByEmail);
+          const merged = await this.repo.save(existingUserByEmail);
+          return UserMapper.toResponseDto(merged);
         }
       }
     }
 
     if (currentUser) {
       currentUser.updateDetails(dto);
-      return this.repo.save(currentUser);
+      const saved = await this.repo.save(currentUser);
+      return UserMapper.toResponseDto(saved);
     } else {
       return this.create(dto);
     }
@@ -250,10 +271,10 @@ export class UserService {
     const passwordHash = await bcrypt.hash(dto.newPassword, saltRounds);
     user.setPassword(passwordHash);
 
-    return this.repo.save(user);
+    await this.repo.save(user);
   }
 
-  async delete(id: string) {
+  async delete(id: string): Promise<void> {
     await this.repo.delete(id);
   }
 
