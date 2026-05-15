@@ -109,6 +109,12 @@ docker-compose up -d --build
 - **Google Auth**: `/classroom/auth`
 - **Рассылка по пользователям**: `/internal/users/broadcast-extension` (Ожидает массив email и текст)
 - **Telegram Webhook/Внутренние API**: `/internal/users/...`
+- **Журналы практик**: `/practices`
+  - CRUD операции для журналов практик.
+  - `GET /practices?enrollmentId=` для получения всех журналов практик для зачисления.
+- **Записи практик**: `/practices/:practiceId/entries`
+  - CRUD операции для отдельных записей практик внутри журнала.
+  - `PATCH /practices/:practiceId/entries/:id/approve` для одобрения записей.
 
 ### Контекст для дальнейшей работы
 При работе с агентами в этом репозитории:

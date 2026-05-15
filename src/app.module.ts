@@ -22,6 +22,7 @@ import { EnrollmentModule } from './enrollments/enrollment.module';
 import { GradeModule } from './grade/grade.module';
 import { GradebookModule } from './grades/gradebooks/gradebook.module';
 import { BackupModule } from './backup/backup.module';
+import { PracticesModule } from './practices/practices.module';
 
 // MCP Autonomous Integration
 import { McpModule } from './mcp/mcp.module';
@@ -79,6 +80,7 @@ export class AppModule {
       GradeModule,
       GradebookModule,
       McpSmModule,
+      PracticesModule,
     ];
 
     // MCP logic: only include if enabled in .env

@@ -77,6 +77,17 @@ enum GradebookStatus {
   REJECTED
 }
 
+enum PracticeType {
+  LITURGICAL
+  PEDAGOGICAL
+}
+
+enum PracticeStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+}
+
 // --- MODELS ---
 
 model AcademicYear {
@@ -171,6 +182,7 @@ model Enrollment {
   sessionRun   SessionRun   @relation(fields: [sessionRunId], references: [id])
   gradeEntries GradeEntry[]
   Gradebook    Gradebook[]
+  practices    Practice[]
 
   @@map("enrollments")
 }
@@ -199,4 +211,32 @@ model Gradebook {
   enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
 
   @@map("gradebooks")
+}
+
+model Practice {
+  id              String   @id @default(uuid()) @db.Uuid
+  enrollment_id   String   @db.Uuid
+  practice_type   String   // 'LITURGICAL' | 'PEDAGOGICAL'
+  practice_status String   @default("DRAFT") // 'DRAFT' | 'SUBMITTED' | 'APPROVED'
+
+  enrollment Enrollment    @relation(fields: [enrollment_id], references: [id], onDelete: Cascade)
+  entries    PracticeEntry[]
+
+  @@unique([enrollment_id, practice_type])
+  @@map("practices")
+}
+
+model PracticeEntry {
+  id           String    @id @default(uuid()) @db.Uuid
+  practice_id  String    @db.Uuid
+  title        String
+  service_kind String?   // только для LITURGICAL
+  location     String?   // только для PEDAGOGICAL
+  date         DateTime  @db.Date
+  approved_at  DateTime?
+  approved_by  String?
+
+  practice Practice @relation(fields: [practice_id], references: [id], onDelete: Cascade)
+
+  @@map("practice_entries")
 }

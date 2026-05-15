@@ -109,6 +109,12 @@ docker-compose up -d --build
 - **Google Auth**: `/classroom/auth`
 - **User Broadcast**: `/internal/users/broadcast-extension` (Expects array of emails and text)
 - **Telegram Webhook/Internal**: `/internal/users/...`
+- **Practices**: `/practices`
+  - CRUD operations for practice journals.
+  - `GET /practices?enrollmentId=` to get all practices for an enrollment.
+- **Practice Entries**: `/practices/:practiceId/entries`
+  - CRUD operations for individual practice entries within a journal.
+  - `PATCH /practices/:practiceId/entries/:id/approve` for approving entries.
 
 ### Further Work Context
 When working with agents on this repository:
