@@ -9,7 +9,7 @@ export class PracticeDto {
 
   @Expose()
   @ApiProperty()
-  enrollmentId: string;
+  studentId: string;
 
   @Expose()
   @ApiProperty()

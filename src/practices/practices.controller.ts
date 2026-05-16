@@ -6,7 +6,6 @@ import {
   Patch,
   Param,
   Delete,
-  Query,
 } from '@nestjs/common';
 import { PracticesService } from './practices.service';
 import { CreatePracticeDto } from './dto/create-practice.dto';
@@ -16,7 +15,7 @@ import { UpdatePracticeEntryDto } from './dto/update-practice-entry.dto';
 import { ApprovePracticeEntryDto } from './dto/approve-practice-entry.dto';
 import { PracticeDto } from './dto/practice.dto';
 import { PracticeEntryDto } from './dto/practice-entry.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/decorators/current-user.decorator';
@@ -28,7 +27,7 @@ export class PracticesController {
   constructor(private readonly practicesService: PracticesService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a practice journal' })
+  @ApiOperation({ summary: 'Create a practice journal for a student' })
   @ApiResponse({ status: 201, description: 'Created', type: PracticeDto })
   create(
     @Body() createPracticeDto: CreatePracticeDto,
@@ -39,15 +38,11 @@ export class PracticesController {
 
   @Get()
   @ApiOperation({
-    summary: 'Get all practice journals or filter by enrollmentId',
+    summary: 'Get all practice journals for the current student',
   })
-  @ApiQuery({ name: 'enrollmentId', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Success', type: [PracticeDto] })
-  findAll(
-    @Query('enrollmentId') enrollmentId?: string,
-    @CurrentUser() user?: JwtPayload,
-  ): Promise<PracticeDto[]> {
-    return this.practicesService.findAll(user, enrollmentId);
+  findAll(@CurrentUser() user?: JwtPayload): Promise<PracticeDto[]> {
+    return this.practicesService.findAll(user);
   }
 
   @Get(':id')

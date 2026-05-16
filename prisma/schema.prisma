@@ -131,6 +131,7 @@ model Student {
   user User @relation(fields: [userId], references: [mongoId])
 
   enrollments Enrollment[]
+  Practice    Practice[]
 
   @@map("students")
 }
@@ -154,7 +155,6 @@ model Subject {
   id                    String  @id @default(uuid()) @db.Uuid
   levelId               String  @map("level_id") @db.Uuid
   title                 String
-  teacherName           String? @map("teacher_name")
   hours                 Int?
   classroomCourseworkId String? @map("classroom_coursework_id")
   hasClassroom          Boolean @default(false) @map("has_classroom")
@@ -175,14 +175,14 @@ model Enrollment {
   sessionRunId String           @map("session_run_id") @db.Uuid
   enrolledAt   DateTime         @default(now()) @map("enrolled_at")
   status       EnrollmentStatus @default(ENROLLED)
-  approvedAt   DateTime?         @map("approved_at")
+  approvedAt   DateTime?        @map("approved_at")
   approvedBy   String?          @map("approved_by")
+  teacherName  String?          @map("teacher_name")
 
   student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   sessionRun   SessionRun   @relation(fields: [sessionRunId], references: [id])
   gradeEntries GradeEntry[]
   Gradebook    Gradebook[]
-  practices    Practice[]
 
   @@map("enrollments")
 }
@@ -214,15 +214,15 @@ model Gradebook {
 }
 
 model Practice {
-  id              String   @id @default(uuid()) @db.Uuid
-  enrollment_id   String   @db.Uuid
-  practice_type   String   // 'LITURGICAL' | 'PEDAGOGICAL'
-  practice_status String   @default("DRAFT") // 'DRAFT' | 'SUBMITTED' | 'APPROVED'
+  id              String @id @default(uuid()) @db.Uuid
+  student_id      String @db.Uuid
+  practice_type   String // 'LITURGICAL' | 'PEDAGOGICAL'
+  practice_status String @default("DRAFT") // 'DRAFT' | 'SUBMITTED' | 'APPROVED'
 
-  enrollment Enrollment    @relation(fields: [enrollment_id], references: [id], onDelete: Cascade)
-  entries    PracticeEntry[]
+  student      Student         @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  entries      PracticeEntry[]
 
-  @@unique([enrollment_id, practice_type])
+  @@unique([student_id, practice_type])
   @@map("practices")
 }
 
@@ -230,8 +230,8 @@ model PracticeEntry {
   id           String    @id @default(uuid()) @db.Uuid
   practice_id  String    @db.Uuid
   title        String
-  service_kind String?   // только для LITURGICAL
-  location     String?   // только для PEDAGOGICAL
+  service_kind String? // только для LITURGICAL
+  location     String? // только для PEDAGOGICAL
   date         DateTime  @db.Date
   approved_at  DateTime?
   approved_by  String?

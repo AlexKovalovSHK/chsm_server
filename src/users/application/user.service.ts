@@ -4,6 +4,7 @@ import {
   NotFoundException,
   UnauthorizedException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { User } from '../domain/user.entity';
@@ -177,16 +178,23 @@ export class UserService {
   }
 
   async create(dto: NewUserDto): Promise<UserResponseDto> {
-    let passwordHash = '';
-    if (dto.email) {
-      const cleanEmail = dto.email.toLowerCase().trim();
-      passwordHash = await bcrypt.hash(cleanEmail, 10);
+    const cleanEmail = dto.email?.toLowerCase().trim();
+
+    if (cleanEmail) {
+      const existing = await this.repo.findByEmail(cleanEmail);
+      if (existing) {
+        throw new ConflictException(
+          `Пользователь с email «${cleanEmail}» уже существует`,
+        );
+      }
     }
+
+    const passwordHash = cleanEmail ? await bcrypt.hash(cleanEmail, 10) : '';
 
     const user = User.create({
       firstName: dto.firstName || 'New',
       lastName: dto.lastName || 'User',
-      email: dto.email,
+      email: cleanEmail,
       tgId: dto.tgId,
       username: dto.username,
       registrationStep: dto.registrationStep,

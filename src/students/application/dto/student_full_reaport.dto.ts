@@ -41,7 +41,6 @@ export interface SubjectDto {
   id: string;
   levelId: string;
   title: string;
-  teacherName: string;
   hours?: number;
   classroomCourseworkId?: string;
   hasClassroom: boolean;

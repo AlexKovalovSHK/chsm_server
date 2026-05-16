@@ -10,7 +10,7 @@ export class CreatePracticeDto {
   @ApiProperty()
   @IsUUID()
   @IsNotEmpty()
-  enrollmentId: string;
+  studentId: string;
 
   @ApiProperty({ enum: PracticeType })
   @IsEnum(PracticeType)

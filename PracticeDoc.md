@@ -2,425 +2,289 @@
 
 ## 📋 Обзор
 
-Система управления практиками в музыкальной школе. Студент заполняет журнал практик (богослужебная или педагогическая), а администратор одобряет каждую запись отдельно.
+Система практик позволяет студенту вести **два журнала практик**:
 
-У каждого **зачисления (Enrollment)** может быть максимум **два журнала** — один богослужебный (`LITURGICAL`) и один педагогический (`PEDAGOGICAL`). Попытка создать дубликат приведёт к ошибке.
+| Тип | Назначение |
+|---|---|
+| **LITURGICAL** | Учёт богослужебной практики: службы, в которых студент принимал участие |
+| **PEDAGOGICAL** | Учёт педагогической практики: уроки, занятия, которые студент провёл |
 
----
+**Архитектурное решение:** практики привязаны напрямую к **Student** (не к Enrollment).  
+У каждого студента — ровно **один LITURGICAL** и **один PEDAGOGICAL** журнал на весь период обучения.
 
-## 🔐 Права доступа (RBAC)
-
-| Роль | Журналы практик | Записи в журнале |
-|------|----------------|------------------|
-| **`admin`** | Полный доступ ко всем журналам всех студентов | Полный доступ, включая одобрение записей |
-| **`teacher`** | Полный доступ ко всем журналам всех студентов | Полный доступ, включая одобрение записей |
-| **`student`** | ❗ Только свои журналы (через свои enrollment) | ❗ Только свои записи. **Не может одобрять** |
-
-### Правила для студента
-
-1. **Создать журнал** — только если `enrollmentId` принадлежит самому студенту (иначе `403 Forbidden`)
-2. **Просмотр/изменение/удаление** — только своих журналов и записей
-3. **Список (`GET /practices`)** — если не указан `enrollmentId`, вернутся все практики студента по всем его зачислениям
-4. **Одобрение записи** (`/approve`) — **запрещено** (`403 Forbidden`)
-
-### Правила для админа/учителя
-
-- Полный доступ ко всем данным
-- `enrollmentId` в `GET /practices` — опциональный фильтр
-
-### Ошибка доступа
-
-```typescript
-// HTTP 403 Forbidden
-{
-  "message": "You do not have access to this practice journal",
-  "error": "Forbidden",
-  "statusCode": 403
-}
-```
-
----
+Связь с Enrollment'ами не нужна — практики являются сквозными для всех курсов студента.
 
 ## 🧱 Модели данных (DTO)
 
 ### PracticeDto — журнал практики
 
 ```typescript
-export interface PracticeDto {
-  id: string;                    // UUID
-  enrollmentId: string;          // UUID зачисления
-  practiceType: 'LITURGICAL' | 'PEDAGOGICAL';
-  practiceStatus: 'DRAFT' | 'SUBMITTED' | 'APPROVED';
-  entries?: PracticeEntryDto[];  // Записи (только при запросе одного журнала)
+interface PracticeDto {
+  id: string;              // UUID журнала
+  studentId: string;       // UUID студента (из таблицы students)
+  practiceType: string;    // 'LITURGICAL' | 'PEDAGOGICAL'
+  practiceStatus: string;  // 'DRAFT' | 'SUBMITTED' | 'APPROVED'
+  entries?: PracticeEntryDto[];  // записи (только при GET /:id)
 }
 ```
 
 ### PracticeEntryDto — запись в журнале
 
 ```typescript
-export interface PracticeEntryDto {
-  id: string;                    // UUID
-  practiceId: string;            // UUID журнала
-  title: string;                 // Название/описание
-  serviceKind: string | null;    // Вид служения (только LITURGICAL)
-  location: string | null;       // Место прохождения (только PEDAGOGICAL)
-  date: string;                  // Дата в формате ISO (YYYY-MM-DD)
-  approvedAt: string | null;     // Дата одобрения ISO (null = не одобрена)
-  approvedBy: string | null;     // Кто одобрил (имя/ID админа)
+interface PracticeEntryDto {
+  id: string;              // UUID записи
+  practiceId: string;      // UUID журнала
+  title: string;           // название/описание
+  serviceKind: string | null;  // только для LITURGICAL (тип службы)
+  location: string | null;     // только для PEDAGOGICAL (место)
+  date: string;            // дата в формате "YYYY-MM-DD"
+  approvedAt: string | null;   // дата утверждения ISO, null если не утверждена
+  approvedBy: string | null;   // ID утвердившего (admin/teacher)
 }
 ```
-
----
 
 ## 🔌 API Endpoints
 
+**Базовый URL:** `http://localhost:5008/api` (или `http://localhost:5008`)
+
+**Авторизация:** Bearer JWT токен в заголовке `Authorization`.
+
+---
+
 ### 1. Журналы практик (Practices)
 
-#### POST `/practices` — Создать журнал практики
+#### `POST /practices` — Создать журнал практики
+
+Создаёт новый журнал для студента.
+
+**Тело запроса:**
 
 ```typescript
-// Request Body
 {
-  enrollmentId: string;   // UUID существующего зачисления
+  studentId: string;   // UUID студента
   practiceType: 'LITURGICAL' | 'PEDAGOGICAL';
 }
-
-// Response (201 Created)
-interface Response extends PracticeDto {}
 ```
+
+**Ограничения:**
+- У одного студента не может быть **двух** журналов одного типа (409 Conflict).
+- Студент может создать журнал только для себя (403, если `studentId` ≠ свой).
+
+**Успешный ответ (201):** `PracticeDto`
 
 **Ошибки:**
-- `409 Conflict` — журнал такого типа для данного enrollment уже существует
-- `403 Forbidden` — студент пытается создать журнал для чужого enrollment
-- `400 Bad Request` — передан неверный `practiceType`
+- `409 Conflict` — журнал этого типа уже существует для данного студента.
+- `403 Forbidden` — попытка создать журнал для другого студента.
 
 ---
 
-#### GET `/practices?enrollmentId=UUID` — Получить все журналы зачисления
+#### `GET /practices` — Получить все свои журналы
 
-```typescript
-// Query params
-enrollmentId: string;  // обязательный
+Возвращает журналы практик.
 
-// Response (200 OK)
-interface Response extends Array<PracticeDto> {}
-```
+- Для **студента** — только свои (фильтр по `student_id` из JWT).
+- Для **admin/teacher** — все журналы всех студентов.
 
-> 💡 Примечание: у одного enrollment максимум 2 журнала (один `LITURGICAL`, один `PEDAGOGICAL`).
+**Успешный ответ (200):** `PracticeDto[]` (без `entries` — только заголовки журналов).
 
----
-
-#### GET `/practices/:id` — Получить журнал с записями
-
-```typescript
-// Response (200 OK)
-interface Response extends PracticeDto {
-  entries: PracticeEntryDto[];  // Вложенный массив записей
-}
-```
-
-**Ошибки:**
-- `404 Not Found` — журнал не найден
-- `403 Forbidden` — студент пытается получить доступ к чужому журналу
+**Типичный результат для студента:** массив из 0, 1 или 2 элементов (LITURGICAL и/или PEDAGOGICAL).
 
 ---
 
-#### PATCH `/practices/:id` — Обновить статус журнала
+#### `GET /practices/:id` — Получить журнал с записями
+
+Возвращает журнал практики **со всеми записями** (`entries` поле заполнено).
+
+- Студент может смотреть **любой** журнал (ограничение по ролям снято).
+- Admin/teacher — любые журналы.
+
+**Успешный ответ (200):** `PracticeDto` с `entries: PracticeEntryDto[]`
+
+---
+
+#### `PATCH /practices/:id` — Обновить статус журнала
 
 ```typescript
-// Request Body
 {
-  practiceStatus?: 'DRAFT' | 'SUBMITTED' | 'APPROVED';
+  practiceStatus: 'DRAFT' | 'SUBMITTED' | 'APPROVED';
 }
-
-// Response (200 OK)
-interface Response extends PracticeDto {}
 ```
 
-**Ошибки:**
-- `404 Not Found` — журнал не найден
-- `403 Forbidden` — студент пытается обновить чужой журнал
+- Студент может менять статус только своего журнала.
+- Admin/teacher — любого.
+
+**Успешный ответ (200):** `PracticeDto`
 
 ---
 
-#### DELETE `/practices/:id` — Удалить журнал
+#### `DELETE /practices/:id` — Удалить журнал
 
-```typescript
-// Response (200 OK) — тело ответа пустое
-// Все связанные записи удаляются каскадно
-```
+Удаляет журнал и **все его записи** (CASCADE).
 
-**Ошибки:**
-- `404 Not Found` — журнал не найден
-- `403 Forbidden` — студент пытается удалить чужой журнал
+- Студент может удалить только свой журнал.
+- Admin/teacher — любой.
+
+**Успешный ответ (200):** без тела.
 
 ---
 
 ### 2. Записи в журнале (Practice Entries)
 
-#### POST `/practices/:practiceId/entries` — Добавить запись
-
-**Валидация полей зависит от типа журнала:**
-
-| Тип журнала | Обязательно | Игнорируется |
-|-------------|------------|--------------|
-| `LITURGICAL` | `title`, `date`, **`serviceKind`** | `location` |
-| `PEDAGOGICAL` | `title`, `date`, **`location`** | `serviceKind` |
+#### `POST /practices/:practiceId/entries` — Добавить запись
 
 ```typescript
-// Request Body
 {
-  title: string;          // Название практики
-  serviceKind?: string;   // Вид служения (только для LITURGICAL)
-  location?: string;      // Место (только для PEDAGOGICAL)
-  date: string;           // ISO date string, e.g. "2023-10-25T00:00:00Z"
-}
-
-// Response (201 Created)
-interface Response extends PracticeEntryDto {}
-```
-
-**Ошибки:**
-- `404 Not Found` — журнал `practiceId` не найден
-- `403 Forbidden` — студент пытается добавить запись в чужой журнал
-- `400 Bad Request` — не указано обязательное поле (serviceKind/location)
-
-**Пример запроса (LITURGICAL):**
-
-```json
-{
-  "title": "Утренняя служба",
-  "serviceKind": "Литургия",
-  "date": "2023-11-15T00:00:00Z"
+  title: string;            // название/описание
+  serviceKind?: string;     // обязательно для LITURGICAL
+  location?: string;        // обязательно для PEDAGOGICAL
+  date: string;             // "YYYY-MM-DD" или ISO
 }
 ```
 
-**Пример запроса (PEDAGOGICAL):**
+**Валидация:**
+- Для `LITURGICAL` — `serviceKind` обязателен, `location` игнорируется.
+- Для `PEDAGOGICAL` — `location` обязателен, `serviceKind` игнорируется.
 
-```json
-{
-  "title": "Урок сольфеджио",
-  "location": "ДМШ №1, каб. 12",
-  "date": "2023-11-15T00:00:00Z"
-}
-```
+**Успешный ответ (201):** `PracticeEntryDto`
 
 ---
 
-#### GET `/practices/:practiceId/entries` — Получить все записи журнала
+#### `GET /practices/:practiceId/entries` — Получить все записи журнала
 
-```typescript
-// Response (200 OK)
-interface Response extends Array<PracticeEntryDto> {}
-```
-
-**Ошибки:**
-- `404 Not Found` — журнал не найден
-- `403 Forbidden` — студент пытается посмотреть записи чужого журнала
+**Успешный ответ (200):** `PracticeEntryDto[]`
 
 ---
 
-#### PATCH `/practices/:practiceId/entries/:id` — Обновить запись
+#### `PATCH /practices/:practiceId/entries/:entryId` — Обновить запись
+
+Частичное обновление (все поля опциональны).
 
 ```typescript
-// Request Body (все поля опциональны)
 {
   title?: string;
-  serviceKind?: string;   // Работает только для LITURGICAL
-  location?: string;      // Работает только для PEDAGOGICAL
-  date?: string;
+  serviceKind?: string;
+  location?: string;
+  date?: string;   // "YYYY-MM-DD"
 }
-
-// Response (200 OK)
-interface Response extends PracticeEntryDto {}
 ```
 
-**Ошибки:**
-- `404 Not Found` — журнал или запись не найдены
-- `403 Forbidden` — студент пытается обновить запись в чужом журнале
-- `400 Bad Request` — `serviceKind` передан для `PEDAGOGICAL` или `location` для `LITURGICAL`
+**Успешный ответ (200):** `PracticeEntryDto`
 
 ---
 
-#### PATCH `/practices/:practiceId/entries/:id/approve` — Одобрить запись
+#### `PATCH /practices/:practiceId/entries/:entryId/approve` — Одобрить запись
+
+Только для **admin/teacher**. Студент получит `403 Forbidden`.
 
 ```typescript
-// Request Body (опционально)
 {
-  approvedBy?: string;  // Имя или ID администратора (если не указан — 'system')
+  approvedBy?: string;   // опционально (по умолчанию ID текущего пользователя)
 }
-
-// Response (200 OK) — у записи проставляются approvedAt и approvedBy
-interface Response extends PracticeEntryDto {}
 ```
 
-**Ошибки:**
-- `403 Forbidden` — студент не может одобрять записи
-- `404 Not Found` — запись не найдена
-- `400 Bad Request` — запись уже одобрена (сообщение: `"Already approved"`)
+**Успешный ответ (200):** `PracticeEntryDto` (с заполненными `approvedAt`, `approvedBy`)
 
-> ⚠️ **Важно:** после одобрения изменить или удалить запись нельзя. Проверяйте `approvedAt` на фронте и блокируйте кнопки редактирования/удаления.
+**Ошибки:**
+- `400 Bad Request` — запись уже утверждена.
+- `403 Forbidden` — попытка студента утвердить запись.
 
 ---
 
-#### DELETE `/practices/:practiceId/entries/:id` — Удалить запись
+#### `DELETE /practices/:practiceId/entries/:entryId` — Удалить запись
 
-```typescript
-// Response (200 OK)
-```
+- Студент может удалить запись только из своего журнала.
+- Admin/teacher — любую.
 
-**Ошибки:**
-- `404 Not Found` — запись не найдена
-- `403 Forbidden` — студент пытается удалить запись из чужого журнала
-
----
-
-## 🎯 UI/UX Рекомендации
-
-### Экран списка практик (по enrollment)
-
-```
-┌─────────────────────────────────────┐
-│  Журналы практик                    │
-├─────────────────────────────────────┤
-│  📖 Богослужебная практика          │
-│  Статус: ✅ Подтверждён             │
-│  Записей: 8 из 10                   │
-│  [Открыть →]                        │
-├─────────────────────────────────────┤
-│  📚 Педагогическая практика         │
-│  Статус: 📝 Черновик                │
-│  Записей: 3 из 10                   │
-│  [Открыть →]                        │
-├─────────────────────────────────────┤
-│  [➕ Создать журнал практики]        │
-│  (disabled, если уже 2 журнала)     │
-└─────────────────────────────────────┘
-```
-
-- Если у enrollment ещё нет журнала какого-то типа — показывайте кнопку "Создать"
-- Если оба журнала уже существуют — кнопка создания неактивна
-
-### Экран журнала со списком записей
-
-```
-┌─────────────────────────────────────┐
-│  ← Назад • Богослужебная практика   │
-│  Статус: 📝 Черновик                │
-│  [Изменить статус]                  │
-├─────────────────────────────────────┤
-│  📅 15.11.2023 — Утренняя служба    │
-│     Вид: Литургия                   │
-│     Одобрено: Администратор         │
-│     [✏️] [🗑] [✅]                   │
-├─────────────────────────────────────┤
-│  📅 10.11.2023 — Вечерняя служба    │
-│     Вид: Всенощная                  │
-│     ❌ Не одобрена                  │
-│     [✏️] [🗑] [✅ Одобрить]          │
-├─────────────────────────────────────┤
-│  [➕ Добавить запись]                │
-└─────────────────────────────────────┘
-```
-
-### Поведение элементов управления (для каждой записи)
-
-| Состояние записи | ✏️ Редактировать | 🗑 Удалить | ✅ Одобрить |
-|-----------------|:---:|:---:|:---:|
-| Не одобрена | ✅ | ✅ | ✅ |
-| Одобрена | ❌ | ❌ | ❌ |
+**Успешный ответ (200):** без тела.
 
 ---
 
 ## 🚦 Статусы журнала практики
 
-| Статус | Описание | Действия пользователя |
-|--------|----------|----------------------|
-| `DRAFT` | Черновик — студент редактирует | Можно добавлять/изменять записи |
-| `SUBMITTED` | Отправлен на проверку | Редактирование заблокировано, ожидает админа |
-| `APPROVED` | Утверждён администратором | Все записи одобрены, журнал закрыт |
+| Статус | Описание | Кто может установить |
+|---|---|---|
+| `DRAFT` | Черновик — студент добавляет записи | Любой владелец |
+| `SUBMITTED` | Отправлено на проверку | Студент (владелец) |
+| `APPROVED` | Утверждено | Admin / Teacher |
+
+**Логика статусов:** `DRAFT → SUBMITTED → APPROVED`.  
+Журнал со статусом `APPROVED` недоступен для редактирования (frontend должен это учитывать).
 
 ---
 
-## ⚠️ Типичные ошибки и их обработка
+## 🎯 UI/UX Рекомендации
 
-```typescript
-interface ApiError {
-  message: string;
-  error: string;    // Тип ошибки (например, "Conflict", "Not Found")
-  statusCode: number;
-}
+### Экран списка практик (2 журнала)
 
-// Статус-коды:
-// 400 - Bad Request (невалидные данные, неверный тип)
-// 404 - Not Found (журнал или запись не найдены)
-// 409 - Conflict (дубликат журнала практики)
+У студента максимум 2 журнала. Отображать в виде двух карточек:
+
+```
+┌─────────────────────────────────────┐
+│  📖 Богослужебная практика           │
+│                                      │
+│  Статус: DRAFT                       │
+│  Записей: 12                         │
+│                                      │
+│  [Открыть] [Редактировать]           │
+└─────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│  📚 Педагогическая практика          │
+│                                      │
+│  Статус: SUBMITTED                   │
+│  Записей: 5                          │
+│                                      │
+│  [Открыть] [Редактировать]           │
+└─────────────────────────────────────┘
 ```
 
-### Пример обработки на фронте:
+- Если журнал ещё не создан — показывать карточку с кнопкой **«Создать»**.
+- При создании — `POST /practices` с `practiceType` (studentId берётся из данных студента).
 
-```typescript
-import { createPractice, PracticeDto } from '@/api/practices';
+### Экран журнала со списком записей
 
-async function handleCreate(enrollmentId: string, type: 'LITURGICAL' | 'PEDAGOGICAL') {
-  try {
-    const result: PracticeDto = await createPractice({ enrollmentId, practiceType: type });
-    // Редирект на страницу созданного журнала
-    navigate(`/practices/${result.id}`);
-  } catch (error) {
-    if (error.status === 409) {
-      // Показать уведомление: "Журнал такого типа уже существует"
-      showNotification('error', 'Журнал такого типа уже создан для этого студента');
-    } else if (error.status === 400) {
-      // Показать уведомление: "Неверный тип практики"
-      showNotification('error', error.message);
-    }
-  }
-}
-```
+Таблица записей с колонками:
 
----
+| Заголовок | Дата | Тип (для литург.) / Место (для педаг.) | Статус утверждения |
+|---|---|---|---|
+| Всенощное бдение | 2024-10-25 | Всенощная | ✅ Утверждено |
+| Урок сольфеджио | 2024-10-28 | Школа №5 | ⏳ Ожидает |
 
-## 📝 Последовательность типичного сценария
-
-1. **Получить enrollment студента** (через API студентов/зачислений)
-2. **Проверить, какие журналы практик существуют** — `GET /practices?enrollmentId=UUID`
-3. **Создать недостающий журнал практики** — `POST /practices`
-4. **Заполнить записи** — `POST /practices/:id/entries`
-5. **Студент меняет статус на `SUBMITTED`** — `PATCH /practices/:id`
-6. **Администратор одобряет каждую запись** — `PATCH /practices/:practiceId/entries/:id/approve`
-7. **Администратор утверждает весь журнал** — `PATCH /practices/:id`
+**Поведение:**
+- **Кнопка «Добавить запись»** — открывает модалку/форму.
+- Для `LITURGICAL` — показывать поле `serviceKind`, скрывать `location`.
+- Для `PEDAGOGICAL` — показывать поле `location`, скрывать `serviceKind`.
+- **Кнопка «Отправить на проверку»** — вызывает `PATCH /practices/:id` со статусом `SUBMITTED`.
+- Если статус журнала `APPROVED` — редактирование записей заблокировано.
+- **Утверждение записи** (admin/teacher) — кнопка «✅ Утвердить» на каждой записи.
 
 ---
 
 ## 🧪 Примеры типов для API-клиента (React/TS)
 
 ```typescript
-// api/practices.ts
+// ---------- Enums ----------
+type PracticeType = 'LITURGICAL' | 'PEDAGOGICAL';
+type PracticeStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED';
 
-import { apiClient } from '@/lib/api-client';
-
-export type PracticeType = 'LITURGICAL' | 'PEDAGOGICAL';
-export type PracticeStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED';
-
-export interface CreatePracticePayload {
-  enrollmentId: string;
+// ---------- Payloads ----------
+interface CreatePracticePayload {
+  studentId: string;
   practiceType: PracticeType;
 }
 
-export interface UpdatePracticePayload {
-  practiceStatus?: PracticeStatus;
+interface UpdatePracticePayload {
+  practiceStatus: PracticeStatus;
 }
 
-export interface PracticeDto {
+interface PracticeDto {
   id: string;
-  enrollmentId: string;
+  studentId: string;
   practiceType: PracticeType;
   practiceStatus: PracticeStatus;
   entries?: PracticeEntryDto[];
 }
 
-export interface PracticeEntryDto {
+interface PracticeEntryDto {
   id: string;
   practiceId: string;
   title: string;
@@ -431,53 +295,196 @@ export interface PracticeEntryDto {
   approvedBy: string | null;
 }
 
-export interface CreatePracticeEntryPayload {
+interface CreatePracticeEntryPayload {
   title: string;
-  serviceKind?: string;
-  location?: string;
-  date: string;
+  serviceKind?: string;   // required for LITURGICAL
+  location?: string;      // required for PEDAGOGICAL
+  date: string;           // "YYYY-MM-DD"
 }
 
-export interface UpdatePracticeEntryPayload {
+interface UpdatePracticeEntryPayload {
   title?: string;
   serviceKind?: string;
   location?: string;
   date?: string;
 }
 
-export interface ApprovePracticeEntryPayload {
+interface ApprovePracticeEntryPayload {
   approvedBy?: string;
 }
-
-// Practices
-export const createPractice = (data: CreatePracticePayload) =>
-  apiClient.post<PracticeDto>('/practices', data);
-
-export const getPractices = (enrollmentId: string) =>
-  apiClient.get<PracticeDto[]>('/practices', { params: { enrollmentId } });
-
-export const getPractice = (id: string) =>
-  apiClient.get<PracticeDto>(`/practices/${id}`);
-
-export const updatePractice = (id: string, data: UpdatePracticePayload) =>
-  apiClient.patch<PracticeDto>(`/practices/${id}`, data);
-
-export const deletePractice = (id: string) =>
-  apiClient.delete(`/practices/${id}`);
-
-// Practice Entries
-export const createPracticeEntry = (practiceId: string, data: CreatePracticeEntryPayload) =>
-  apiClient.post<PracticeEntryDto>(`/practices/${practiceId}/entries`, data);
-
-export const getPracticeEntries = (practiceId: string) =>
-  apiClient.get<PracticeEntryDto[]>(`/practices/${practiceId}/entries`);
-
-export const updatePracticeEntry = (practiceId: string, entryId: string, data: UpdatePracticeEntryPayload) =>
-  apiClient.patch<PracticeEntryDto>(`/practices/${practiceId}/entries/${entryId}`, data);
-
-export const approvePracticeEntry = (practiceId: string, entryId: string, data?: ApprovePracticeEntryPayload) =>
-  apiClient.patch<PracticeEntryDto>(`/practices/${practiceId}/entries/${entryId}/approve`, data ?? {});
-
-export const deletePracticeEntry = (practiceId: string, entryId: string) =>
-  apiClient.delete(`/practices/${practiceId}/entries/${entryId}`);
 ```
+
+## ⚛️ React Query хуки (примеры)
+
+```typescript
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+const API = 'http://localhost:5008';
+
+// ---------- Practices ----------
+
+// GET /practices
+function usePractices() {
+  return useQuery<PracticeDto[]>({
+    queryKey: ['practices'],
+    queryFn: () => fetch(`${API}/practices`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    }).then(r => r.json()),
+  });
+}
+
+// GET /practices/:id
+function usePractice(id: string) {
+  return useQuery<PracticeDto>({
+    queryKey: ['practice', id],
+    queryFn: () => fetch(`${API}/practices/${id}`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    }).then(r => r.json()),
+    enabled: !!id,
+  });
+}
+
+// POST /practices
+function useCreatePractice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreatePracticePayload) =>
+      fetch(`${API}/practices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify(payload),
+      }).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['practices'] }),
+  });
+}
+
+// PATCH /practices/:id
+function useUpdatePractice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...payload }: { id: string } & UpdatePracticePayload) =>
+      fetch(`${API}/practices/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify(payload),
+      }).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['practices'] }),
+  });
+}
+
+// DELETE /practices/:id
+function useDeletePractice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      fetch(`${API}/practices/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['practices'] }),
+  });
+}
+
+// ---------- Entries ----------
+
+// POST /practices/:practiceId/entries
+function useCreateEntry(practiceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreatePracticeEntryPayload) =>
+      fetch(`${API}/practices/${practiceId}/entries`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify(payload),
+      }).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['practice', practiceId] }),
+  });
+}
+
+// GET /practices/:practiceId/entries
+function useEntries(practiceId: string) {
+  return useQuery<PracticeEntryDto[]>({
+    queryKey: ['practice', practiceId, 'entries'],
+    queryFn: () => fetch(`${API}/practices/${practiceId}/entries`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    }).then(r => r.json()),
+    enabled: !!practiceId,
+  });
+}
+
+// PATCH /practices/:practiceId/entries/:entryId
+function useUpdateEntry(practiceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ entryId, ...payload }: { entryId: string } & UpdatePracticeEntryPayload) =>
+      fetch(`${API}/practices/${practiceId}/entries/${entryId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify(payload),
+      }).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['practice', practiceId] }),
+  });
+}
+
+// PATCH /practices/:practiceId/entries/:entryId/approve
+function useApproveEntry(practiceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ entryId, ...payload }: { entryId: string } & ApprovePracticeEntryPayload) =>
+      fetch(`${API}/practices/${practiceId}/entries/${entryId}/approve`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify(payload),
+      }).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['practice', practiceId] }),
+  });
+}
+
+// DELETE /practices/:practiceId/entries/:entryId
+function useDeleteEntry(practiceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (entryId: string) =>
+      fetch(`${API}/practices/${practiceId}/entries/${entryId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['practice', practiceId] }),
+  });
+}
+```
+
+## ⚠️ Типичные ошибки и их обработка
+
+```typescript
+interface ApiError {
+  message: string | string[];
+  error: string;
+  statusCode: number;
+}
+```
+
+| Код | message | Причина | Действие на фронте |
+|---|---|---|---|
+| `409` | `Practice journal of type LITURGICAL already exists for this student` | Повторное создание журнала | Показать существующий, скрыть кнопку «Создать» |
+| `404` | `Practice not found` | Неверный ID | Показать «404 — журнал не найден» |
+| `403` | `You do not have access to this practice journal` | Чужая практика | Перенаправить на список своих практик |
+| `400` | `serviceKind is required for LITURGICAL practice` | Пропущено поле | Подсветить поле красным |
+| `400` | `location is required for PEDAGOGICAL practice` | Пропущено поле | Подсветить поле красным |
+| `400` | `Already approved` | Повторное утверждение | Показать сообщение «Уже утверждено» |
+| `403` | `Only admin or teacher can approve entries` | Студент пытается утвердить | Скрыть кнопку «Утвердить» для студента |
+
+## 📝 Последовательность типичного сценария (Student flow)
+
+1. **Авторизация** — получить JWT токен.
+2. **Загрузить профиль студента** — `GET /students/v2/:userId` → получаем `student.id`.
+3. **Загрузить практики** — `GET /practices`:
+   - Если массив пуст — показать 2 карточки с кнопками «Создать».
+   - Если есть 1 журнал — показать 1 созданный + 1 кнопку «Создать» для второго типа.
+   - Если есть 2 — всё готово.
+4. **Создать журнал** — `POST /practices` с `{ studentId, practiceType }`.
+5. **Открыть журнал** — `GET /practices/:id` → получаем `entries`.
+6. **Добавить запись** — `POST /practices/:practiceId/entries` с полями под тип практики.
+7. **Отправить на проверку** — `PATCH /practices/:id` → `{ practiceStatus: 'SUBMITTED' }`.
+8. **Admin/teacher утверждает записи** — `PATCH /practices/:practiceId/entries/:entryId/approve`.
+9. **Admin/teacher утверждает журнал** — `PATCH /practices/:id` → `{ practiceStatus: 'APPROVED' }`.

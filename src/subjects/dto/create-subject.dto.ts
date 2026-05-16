@@ -24,11 +24,6 @@ export class CreateSubjectDto {
   @IsNotEmpty()
   title: string;
 
-  @ApiPropertyOptional({ example: 'John Doe' })
-  @IsString()
-  @IsOptional()
-  teacherName?: string;
-
   @ApiPropertyOptional({ example: 72 })
   @IsInt()
   @IsOptional()

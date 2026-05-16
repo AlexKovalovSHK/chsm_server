@@ -3,13 +3,15 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateEnrollmentDto } from '../dto/create-enrollment.dto';
 import { UpdateEnrollmentDto } from '../dto/update-enrollment.dto';
 import { ApprovedEnrollment } from '../dto/apruve-enrollment.dto';
+import { EnrollmentDto } from '../dto/enrollment.dto';
+import { EnrollmentMapper } from '../mappers/enrollment.mapper';
 
 @Injectable()
 export class EnrollmentService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateEnrollmentDto) {
-    return this.prisma.enrollment.create({
+  async create(dto: CreateEnrollmentDto): Promise<EnrollmentDto> {
+    const enrollment = await this.prisma.enrollment.create({
       data: {
         ...dto,
         enrolledAt: dto.enrolledAt ? new Date(dto.enrolledAt) : undefined,
@@ -17,21 +19,25 @@ export class EnrollmentService {
       },
       include: { student: true, sessionRun: true },
     });
+    return EnrollmentMapper.toDto(enrollment);
   }
 
-  async findAll() {
-    return this.prisma.enrollment.findMany({
+  async findAll(): Promise<EnrollmentDto[]> {
+    const enrollments = await this.prisma.enrollment.findMany({
       include: { student: true, sessionRun: true },
     });
+    return enrollments.map(EnrollmentMapper.toDto);
   }
 
-  async findAllByStudentId(id: string) {
-    return this.prisma.enrollment.findMany({
+  async findAllByStudentId(id: string): Promise<EnrollmentDto[]> {
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { studentId: id },
       include: { student: true, sessionRun: true },
     });
+    return enrollments.map(EnrollmentMapper.toDto);
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<EnrollmentDto> {
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { id },
       include: { student: true, sessionRun: true },
@@ -39,12 +45,12 @@ export class EnrollmentService {
     if (!enrollment) {
       throw new NotFoundException(`Enrollment with ID ${id} not found`);
     }
-    return enrollment;
+    return EnrollmentMapper.toDto(enrollment);
   }
 
-  async update(id: string, dto: UpdateEnrollmentDto) {
+  async update(id: string, dto: UpdateEnrollmentDto): Promise<EnrollmentDto> {
     await this.findOne(id);
-    return this.prisma.enrollment.update({
+    const enrollment = await this.prisma.enrollment.update({
       where: { id },
       data: {
         ...dto,
@@ -53,11 +59,12 @@ export class EnrollmentService {
       },
       include: { student: true, sessionRun: true },
     });
+    return EnrollmentMapper.toDto(enrollment);
   }
 
-  async approve(id: string, dto: ApprovedEnrollment) {
+  async approve(id: string, dto: ApprovedEnrollment): Promise<EnrollmentDto> {
     await this.findOne(id);
-    return this.prisma.enrollment.update({
+    const enrollment = await this.prisma.enrollment.update({
       where: { id },
       data: {
         approvedAt: new Date(),
@@ -65,11 +72,12 @@ export class EnrollmentService {
       },
       include: { student: true, sessionRun: true },
     });
+    return EnrollmentMapper.toDto(enrollment);
   }
 
-  async remove(id: string) {
+  async remove(id: string): Promise<void> {
     await this.findOne(id);
-    return this.prisma.enrollment.delete({
+    await this.prisma.enrollment.delete({
       where: { id },
     });
   }

@@ -27,18 +27,18 @@ export class PracticesService {
     createPracticeDto: CreatePracticeDto,
     user: JwtPayload,
   ): Promise<PracticeDto> {
-    // Student can create a practice only for his own enrollment
+    // Student can create a practice only for himself
     if (user.role === 'student') {
-      await this.assertEnrollmentOwnership(
-        createPracticeDto.enrollmentId,
+      await this.assertStudentIdentity(
+        createPracticeDto.studentId,
         user.userId,
       );
     }
 
     const existing = await this.prisma.practice.findUnique({
       where: {
-        enrollment_id_practice_type: {
-          enrollment_id: createPracticeDto.enrollmentId,
+        student_id_practice_type: {
+          student_id: createPracticeDto.studentId,
           practice_type: createPracticeDto.practiceType,
         },
       },
@@ -46,13 +46,13 @@ export class PracticesService {
 
     if (existing) {
       throw new ConflictException(
-        'Practice journal for this type and enrollment already exists',
+        `Practice journal of type ${createPracticeDto.practiceType} already exists for this student`,
       );
     }
 
     const practice = await this.prisma.practice.create({
       data: {
-        enrollment_id: createPracticeDto.enrollmentId,
+        student_id: createPracticeDto.studentId,
         practice_type: createPracticeDto.practiceType,
       },
     });
@@ -60,23 +60,16 @@ export class PracticesService {
     return this.mapToPracticeDto(practice);
   }
 
-  async findAll(
-    user?: JwtPayload,
-    enrollmentId?: string,
-  ): Promise<PracticeDto[]> {
-    // Build where clause based on role
+  async findAll(user?: JwtPayload): Promise<PracticeDto[]> {
     const where: any = {};
 
-    if (enrollmentId) {
-      where.enrollment_id = enrollmentId;
-    }
-
-    // For student — only practices from their own enrollments
+    // For student — only their own practices
     if (user && user.role === 'student') {
-      const studentEnrollmentIds = await this.getStudentEnrollmentIds(
-        user.userId,
-      );
-      where.enrollment_id = enrollmentId ?? { in: studentEnrollmentIds };
+      const studentId = await this.getStudentId(user.userId);
+      if (!studentId) {
+        return [];
+      }
+      where.student_id = studentId;
     }
 
     const practices = await this.prisma.practice.findMany({ where });
@@ -94,11 +87,6 @@ export class PracticesService {
       throw new NotFoundException('Practice not found');
     }
 
-    // Student can see only his own practices
-    if (user.role === 'student') {
-      await this.assertEnrollmentOwnership(practice.enrollment_id, user.userId);
-    }
-
     return this.mapToPracticeDto(practice);
   }
 
@@ -114,7 +102,7 @@ export class PracticesService {
 
     // Student can update only his own practice
     if (user.role === 'student') {
-      await this.assertEnrollmentOwnership(practice.enrollment_id, user.userId);
+      await this.assertPracticeOwnership(practice.student_id, user.userId);
     }
 
     const updated = await this.prisma.practice.update({
@@ -135,7 +123,7 @@ export class PracticesService {
 
     // Student can delete only his own practice
     if (user.role === 'student') {
-      await this.assertEnrollmentOwnership(practice.enrollment_id, user.userId);
+      await this.assertPracticeOwnership(practice.student_id, user.userId);
     }
 
     await this.prisma.practice.delete({ where: { id } });
@@ -159,7 +147,7 @@ export class PracticesService {
 
     // Student can add entries only to his own practice
     if (user.role === 'student') {
-      await this.assertEnrollmentOwnership(practice.enrollment_id, user.userId);
+      await this.assertPracticeOwnership(practice.student_id, user.userId);
     }
 
     if (practice.practice_type === 'LITURGICAL' && !createDto.serviceKind) {
@@ -204,7 +192,7 @@ export class PracticesService {
 
     // Student can see entries only of his own practice
     if (user.role === 'student') {
-      await this.assertEnrollmentOwnership(practice.enrollment_id, user.userId);
+      await this.assertPracticeOwnership(practice.student_id, user.userId);
     }
 
     const entries = await this.prisma.practiceEntry.findMany({
@@ -229,7 +217,7 @@ export class PracticesService {
 
     // Student can update entries only in his own practice
     if (user.role === 'student') {
-      await this.assertEnrollmentOwnership(practice.enrollment_id, user.userId);
+      await this.assertPracticeOwnership(practice.student_id, user.userId);
     }
 
     const entry = await this.prisma.practiceEntry.findFirst({
@@ -321,7 +309,7 @@ export class PracticesService {
 
     // Student can delete entries only in his own practice
     if (user.role === 'student') {
-      await this.assertEnrollmentOwnership(practice.enrollment_id, user.userId);
+      await this.assertPracticeOwnership(practice.student_id, user.userId);
     }
 
     const entry = await this.prisma.practiceEntry.findFirst({
@@ -340,39 +328,48 @@ export class PracticesService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Returns the array of enrollment IDs that belong to a student identified
-   * by the user's mongoId (JWT subject).
+   * Returns the student's internal id by their user's mongoId, or null if not found.
    */
-  private async getStudentEnrollmentIds(userId: string): Promise<string[]> {
+  private async getStudentId(userId: string): Promise<string | null> {
     const student = await this.prisma.student.findUnique({
       where: { userId },
-      include: { enrollments: { select: { id: true } } },
+      select: { id: true },
     });
-    if (!student) {
-      return [];
-    }
-    return student.enrollments.map((e) => e.id);
+    return student?.id ?? null;
   }
 
   /**
-   * Throws ForbiddenException if the given enrollment does NOT belong to
-   * the student identified by the user's mongoId.
+   * Throws ForbiddenException if the given studentId does NOT belong to
+   * the user identified by user mongoId.
    */
-  private async assertEnrollmentOwnership(
-    enrollmentId: string,
+  private async assertStudentIdentity(
+    studentId: string,
     userId: string,
   ): Promise<void> {
-    const student = await this.prisma.student.findUnique({
-      where: { userId },
-      include: {
-        enrollments: {
-          where: { id: enrollmentId },
-          select: { id: true },
-        },
-      },
+    const student = await this.prisma.student.findFirst({
+      where: { id: studentId, userId },
+      select: { id: true },
     });
 
-    if (!student || student.enrollments.length === 0) {
+    if (!student) {
+      throw new ForbiddenException('You do not have access to this student');
+    }
+  }
+
+  /**
+   * Throws ForbiddenException if the practice's student_id does NOT belong to
+   * the user identified by user mongoId.
+   */
+  private async assertPracticeOwnership(
+    studentId: string,
+    userId: string,
+  ): Promise<void> {
+    const student = await this.prisma.student.findFirst({
+      where: { id: studentId, userId },
+      select: { id: true },
+    });
+
+    if (!student) {
       throw new ForbiddenException(
         'You do not have access to this practice journal',
       );
@@ -388,7 +385,7 @@ export class PracticesService {
       PracticeDto,
       {
         ...practice,
-        enrollmentId: practice.enrollment_id,
+        studentId: practice.student_id,
         practiceType: practice.practice_type,
         practiceStatus: practice.practice_status,
         entries: practice.entries

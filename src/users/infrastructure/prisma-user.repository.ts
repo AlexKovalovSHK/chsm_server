@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { User } from '../domain/user.entity';
 import {
@@ -84,12 +84,25 @@ export class PrismaUserRepository implements IUserRepository {
 
   async save(user: User): Promise<User> {
     const persistence = UserMapper.toPersistence(user);
-    console.log(
-      `💾 Saving user ${user.id.toString()}:`,
-      JSON.stringify(persistence, null, 2),
-    );
 
     const mongoId = user.id.toString();
+    const email = persistence.email;
+
+    // Защита от дубликатов email
+    if (email) {
+      const existingByEmail = await this.prisma.user.findFirst({
+        where: {
+          email,
+          mongoId: { not: mongoId },
+        },
+      });
+
+      if (existingByEmail) {
+        throw new ConflictException(
+          `Пользователь с email «${email}» уже существует (ID: ${existingByEmail.id})`,
+        );
+      }
+    }
 
     const doc = await this.prisma.user.upsert({
       where: { mongoId },
@@ -116,6 +129,12 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   async delete(id: string): Promise<void> {
+    // Сначала удаляем связанный Student (каскадно удалит Enrollment, Practice и т.д.)
+    await this.prisma.student.deleteMany({
+      where: { userId: id },
+    });
+
+    // Теперь удаляем пользователя
     await this.prisma.user.deleteMany({
       where: { mongoId: id },
     });

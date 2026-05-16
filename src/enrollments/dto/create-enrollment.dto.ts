@@ -33,10 +33,15 @@ export class CreateEnrollmentDto {
   @IsOptional()
   approvedAt?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'ID или имя пользователя, подтвердившего зачисление',
   })
   @IsString()
-  @IsNotEmpty()
-  approvedBy: string;
+  @IsOptional()
+  approvedBy?: string;
+
+  @ApiPropertyOptional({ description: 'Имя преподавателя' })
+  @IsString()
+  @IsOptional()
+  teacherName?: string;
 }
