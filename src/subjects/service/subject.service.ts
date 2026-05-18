@@ -2,29 +2,19 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
-  Inject,
 } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
-import type { Request } from 'express';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateSubjectDto } from '../dto/create-subject.dto';
 import { UpdateSubjectDto } from '../dto/update-subject.dto';
 
 @Injectable()
 export class SubjectService {
-  private readonly currentOrgId: string;
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor(
-    private readonly prisma: PrismaService,
-    @Inject(REQUEST) private readonly request: Request,
-  ) {
-    this.currentOrgId = this.request.currentOrgId as string;
-  }
-
-  async create(dto: CreateSubjectDto) {
+  async create(dto: CreateSubjectDto, organizationId: string) {
     // verify sessionRun belongs to currentOrgId
     const sessionRun = await this.prisma.sessionRun.findUnique({
-      where: { id: dto.sessionRunId, organizationId: this.currentOrgId },
+      where: { id: dto.sessionRunId, organizationId },
     });
     if (!sessionRun) {
       throw new ForbiddenException(
@@ -32,29 +22,32 @@ export class SubjectService {
       );
     }
 
+    // Убираем поля, которых нет в Prisma Subject (teacherName и т.п.)
+    const { teacherName, ...cleanData } = dto as any;
+
     return this.prisma.subject.create({
-      data: dto,
+      data: cleanData,
       include: { level: true, sessionRun: true },
     });
   }
 
-  async findAll() {
+  async findAll(organizationId: string) {
     return this.prisma.subject.findMany({
       where: {
         sessionRun: {
-          organizationId: this.currentOrgId,
+          organizationId,
         },
       },
       include: { level: true, sessionRun: true },
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, organizationId: string) {
     const subject = await this.prisma.subject.findFirst({
       where: {
         id,
         sessionRun: {
-          organizationId: this.currentOrgId,
+          organizationId,
         },
       },
       include: { level: true, sessionRun: true },
@@ -65,8 +58,8 @@ export class SubjectService {
     return subject;
   }
 
-  async update(id: string, dto: UpdateSubjectDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateSubjectDto, organizationId: string) {
+    await this.findOne(id, organizationId);
     return this.prisma.subject.update({
       where: { id },
       data: dto,
@@ -74,8 +67,8 @@ export class SubjectService {
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, organizationId: string) {
+    await this.findOne(id, organizationId);
     return this.prisma.subject.delete({
       where: { id },
     });
