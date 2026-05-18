@@ -50,4 +50,15 @@ export class UpdateUserDto {
   @IsObject()
   @IsOptional()
   metadata?: Record<string, any>;
+
+  @ApiPropertyOptional({ description: 'Новая роль пользователя' })
+  @IsString()
+  @IsOptional()
+  role?: string;
+
+  @ApiPropertyOptional({ description: 'ID организации для синхронизации роли' })
+  @IsString()
+  @IsOptional()
+  organizationId?: string;
+
 }

@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { User } from '../domain/user.entity';
@@ -14,15 +15,20 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { NewUserDto } from './dto/new-user.dto';
 import * as userRepositoryInterface from '../domain/user.repository.interface';
 import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../../prisma/prisma.service';
+import { OrganizationService } from '../../organization/organization.service';
 import { ResetPasswordDto } from 'src/auth/dto/reset-password.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UserMapper } from '../infrastructure/user.mapper';
 
 @Injectable()
 export class UserService {
+  private readonly logger = new Logger(UserService.name);
   constructor(
     @Inject('IUserRepository')
     private readonly repo: userRepositoryInterface.IUserRepository,
+    private readonly prisma: PrismaService,
+    private readonly orgService: OrganizationService,
   ) {}
 
   async findAll(
@@ -63,11 +69,23 @@ export class UserService {
     id: string,
     updateData: UpdateUserDto & { organizationId?: string },
   ): Promise<UserResponseDto> {
+    this.logger.debug(
+      `[update] id=${id}, updateData=${JSON.stringify(updateData)}`,
+    );
+
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Пользователь не найден');
+    this.logger.debug(
+      `[update] User found. Current role in entity: ${user.role.toString()}`,
+    );
 
-    // Извлекаем organizationId до передачи в updateDetails (чтобы не положить в сущность)
-    const { organizationId, ...cleanData } = updateData;
+    // Извлекаем ТОЛЬКО organizationId. role должен остаться в cleanData для updateDetails!
+    const { organizationId, ...cleanData } = updateData as any;
+    const changedRole = (cleanData as any).role as string | undefined;
+
+    this.logger.debug(
+      `[update] Extracted: organizationId=${organizationId}, role from cleanData=${changedRole}, cleanData keys=${Object.keys(cleanData).join(',')}`,
+    );
 
     // Если у пользователя нет пароля, но есть email (пришедший или существующий), создаем его
     const emailForPassword = cleanData.email || user.email;
@@ -77,16 +95,87 @@ export class UserService {
     }
 
     user.updateDetails(cleanData);
+    this.logger.debug(
+      `[update] After updateDetails, user role in entity: ${user.role.toString()}`,
+    );
+
     const saved = await this.repo.save(user, organizationId);
+    this.logger.debug(`[update] User saved. Returned from repo.`);
+
+    // Синхронизируем роль в OrgMember, если role была изменена И есть organizationId
+    if (changedRole && organizationId) {
+      this.logger.debug(
+        `[update] Attempting OrgMember sync: orgId=${organizationId}, role=${changedRole}`,
+      );
+
+      const userRecord = await this.prisma.user.findUnique({
+        where: { mongoId: id },
+        select: { id: true },
+      });
+
+      if (!userRecord) {
+        this.logger.error(`[update] User record not found by mongoId=${id}`);
+      } else {
+        this.logger.debug(
+          `[update] Found user Int id=${userRecord.id}. Calling ensureUserRoleInOrg...`,
+        );
+        try {
+          const result = await this.orgService.ensureUserRoleInOrg(
+            organizationId,
+            userRecord.id,
+            changedRole.toUpperCase() as any,
+          );
+          this.logger.log(
+            `[update] OrgMember sync SUCCESS: userId=${userRecord.id}, orgId=${organizationId}, role=${result.role}`,
+          );
+        } catch (err) {
+          this.logger.error(`[update] OrgMember sync FAILED: ${err.message}`);
+        }
+      }
+    } else {
+      this.logger.debug(
+        `[update] SKIP OrgMember sync: changedRole=${changedRole}, organizationId=${organizationId}`,
+      );
+    }
+
     return UserMapper.toResponseDto(saved);
   }
 
-  async changeRole(id: string, role: string): Promise<UserResponseDto> {
+  async changeRole(
+    id: string,
+    role: string,
+    organizationId?: string,
+  ): Promise<UserResponseDto> {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Пользователь не найден');
 
     user.changeRole(UserRole.fromString(role));
-    const saved = await this.repo.save(user);
+    const saved = await this.repo.save(user, organizationId);
+
+    // Синхронизируем роль в OrgMember через OrganizationService
+    if (organizationId) {
+      // Получаем Int userId через Prisma (mongoId → Int id)
+      const userRecord = await this.prisma.user.findUnique({
+        where: { mongoId: id },
+        select: { id: true },
+      });
+
+      if (!userRecord) {
+        console.error(
+          `Синхронизация роли провалена: пользователь с mongoId ${id} не найден в БД`,
+        );
+      }
+
+      if (userRecord) {
+        // ensureUserRoleInOrg = upsert: добавляет или обновляет роль
+        await this.orgService.ensureUserRoleInOrg(
+          organizationId,
+          userRecord.id,
+          role.toUpperCase() as any,
+        );
+      }
+    }
+
     return UserMapper.toResponseDto(saved);
   }
 

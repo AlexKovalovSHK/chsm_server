@@ -11,13 +11,17 @@ import {
   UseGuards,
   Res,
   BadRequestException,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { UserService } from '../application/user.service';
 import { UpdateUserDto } from '../application/dto/update-user.dto';
 import { NewUserDto } from '../application/dto/new-user.dto';
 import { ChangePasswordDto } from '../application/dto/change-password.dto';
 import { ClassroomService } from '../../classroom/service/classroom.service';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { MultiTenancyGuard } from 'src/auth/guards/multi-tenancy.guard';
+import { Roles } from 'src/auth/decorators/roles.decorator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import type { JwtPayload } from '../../auth/decorators/current-user.decorator';
 import express from 'express';
@@ -202,8 +206,18 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Обновить пользователя по ID' })
   @ApiParam({ name: 'id' })
-  async update(@Param('id') id: string, @Body() updateData: UpdateUserDto) {
-    return this.userService.update(id, updateData);
+  async update(
+    @Param('id') id: string,
+    @Body() updateData: UpdateUserDto,
+    @Req() req: Request,
+  ) {
+    // Читаем orgId из заголовка x-org-id (currentOrgId проставляется только MultiTenancyGuard)
+    const orgIdFromHeader = req.headers['x-org-id'] as string | undefined;
+    const dataWithOrg = {
+      ...updateData,
+      organizationId: updateData.organizationId || orgIdFromHeader,
+    };
+    return this.userService.update(id, dataWithOrg);
   }
 
   @Patch('me/password')
@@ -216,7 +230,8 @@ export class UserController {
   }
 
   @Patch(':id/role')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(MultiTenancyGuard)
+  @Roles('admin')
   @ApiOperation({ summary: 'Изменить роль пользователя' })
   @ApiParam({ name: 'id' })
   @ApiBody({
@@ -226,8 +241,13 @@ export class UserController {
       properties: { role: { type: 'string' } },
     },
   })
-  async changeRole(@Param('id') id: string, @Body('role') role: string) {
-    return this.userService.changeRole(id, role);
+  async changeRole(
+    @Param('id') id: string,
+    @Body('role') role: string,
+    @Req() req: Request,
+  ) {
+    const orgId = (req as any).currentOrgId;
+    return this.userService.changeRole(id, role, orgId);
   }
 
   @Delete(':id')

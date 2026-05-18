@@ -6,10 +6,11 @@ import { IStudentRepository } from './domain/repositories/student.repository.int
 import { PrismaStudentRepository } from './infrastructure/persistence/prisma-student.repository';
 import { StudentControllerV2 } from './interface/http/student.controller_v2';
 import { MultiTenancyGuard } from 'src/auth/guards/multi-tenancy.guard';
+import { OrganizationModule } from 'src/organization/organization.module';
 import { JwtModule } from '@nestjs/jwt';
 
 @Module({
-  imports: [PrismaModule, JwtModule.register({})],
+  imports: [PrismaModule, OrganizationModule, JwtModule.register({})],
   controllers: [StudentController, StudentControllerV2],
   providers: [
     StudentService,

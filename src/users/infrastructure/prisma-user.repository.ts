@@ -6,13 +6,17 @@ import {
   UserFilter,
 } from '../domain/user.repository.interface';
 import { UserMapper } from './user.mapper';
+import { OrganizationService } from '../../organization/organization.service';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class PrismaUserRepository implements IUserRepository {
   private readonly logger = new Logger(PrismaUserRepository.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly orgService: OrganizationService,
+  ) {}
 
   async findById(id: string): Promise<User | null> {
     const doc = await this.prisma.user.findFirst({
@@ -120,38 +124,25 @@ export class PrismaUserRepository implements IUserRepository {
       },
     });
 
-    // Всегда создаём OrgMember, если его нет (upsert)
-    // Покрывает: новых пользователей + существующих без OrgMember
-    const orgId =
-      organizationId ||
-      (
-        await this.prisma.organization.findUnique({
-          where: { slug: 'chsm_brass_eu' },
-          select: { id: true },
-        })
-      )?.id;
+    // Создаём OrgMember через OrganizationService (если ещё нет)
+    try {
+      const org = organizationId
+        ? await this.orgService.findById(organizationId)
+        : await this.orgService.getDefaultOrganization();
 
-    if (orgId) {
-      await this.prisma.orgMember
-        .upsert({
-          where: {
-            organizationId_userId: {
-              userId: doc.id,
-              organizationId: orgId,
-            },
-          },
-          update: {}, // если уже есть — ничего не меняем
-          create: {
-            userId: doc.id,
-            organizationId: orgId,
-            role: 'STUDENT',
-          },
-        })
-        .catch((err) => {
-          this.logger.warn(
-            `OrgMember upsert skipped: ${err instanceof Prisma.PrismaClientKnownRequestError ? err.code + ' - ' + err.message : err.message}`,
-          );
-        });
+      // Маппим UserRole → OrgMemberRole
+      // 'student' → 'STUDENT', 'admin' → 'ADMIN', 'teacher' → 'TEACHER'
+      const orgRole = user.role.toString().toUpperCase() as any;
+
+      await this.orgService.addUserToOrg(org.id, {
+        userId: doc.id,
+        role: orgRole,
+      });
+    } catch (err) {
+      // ConflictException = уже участник — это нормально для upsert-логики
+      if (!(err instanceof ConflictException)) {
+        this.logger.warn(`OrgMember creation skipped: ${err.message}`);
+      }
     }
 
     return UserMapper.toDomain(doc);

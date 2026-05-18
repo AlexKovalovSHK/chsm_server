@@ -3,12 +3,12 @@ import {
   ExecutionContext,
   ForbiddenException,
   UnauthorizedException,
-  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { Reflector } from '@nestjs/core';
 import { AdminAndTeacherGuard } from './admin_and_teacher.guard';
+import { OrganizationService } from 'src/organization/organization.service';
 import type { JwtPayload } from '../decorators/current-user.decorator';
 
 @Injectable()
@@ -16,6 +16,7 @@ export class MultiTenancyGuard extends AdminAndTeacherGuard {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly orgService: OrganizationService,
     reflector: Reflector,
   ) {
     super(reflector);
@@ -32,14 +33,8 @@ export class MultiTenancyGuard extends AdminAndTeacherGuard {
     let orgId: string = request.headers['x-org-id'];
 
     if (!orgId) {
-      const defaultOrg = await this.prisma.organization.findUnique({
-        where: { slug: 'chsm_brass_eu' },
-      });
-      if (defaultOrg) {
-        orgId = defaultOrg.id;
-      } else {
-        throw new NotFoundException('Default organization not found');
-      }
+      const defaultOrg = await this.orgService.getDefaultOrganization();
+      orgId = defaultOrg.id;
     }
 
     if (!user || !user.userId) {
@@ -57,16 +52,9 @@ export class MultiTenancyGuard extends AdminAndTeacherGuard {
       throw new UnauthorizedException('User not found in database');
     }
 
-    const orgMember = await this.prisma.orgMember.findUnique({
-      where: {
-        organizationId_userId: {
-          userId: userRecord.id,
-          organizationId: orgId,
-        },
-      },
-    });
+    const isMember = await this.orgService.isMember(orgId, userRecord.id);
 
-    if (!orgMember) {
+    if (!isMember) {
       throw new ForbiddenException(`You are not a member of this organization`);
     }
 

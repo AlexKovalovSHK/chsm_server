@@ -21,6 +21,7 @@ import { SubjectModule } from './subjects/subject.module';
 import { EnrollmentModule } from './enrollments/enrollment.module';
 import { GradeModule } from './grade/grade.module';
 import { GradebookModule } from './grades/gradebooks/gradebook.module';
+import { OrganizationModule } from './organization/organization.module';
 import { BackupModule } from './backup/backup.module';
 import { PracticesModule } from './practices/practices.module';
 
@@ -81,6 +82,7 @@ export class AppModule {
       GradebookModule,
       McpSmModule,
       PracticesModule,
+      OrganizationModule,
     ];
 
     // MCP logic: only include if enabled in .env
