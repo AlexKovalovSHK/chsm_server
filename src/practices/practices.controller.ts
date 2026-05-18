@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { PracticesService } from './practices.service';
 import { CreatePracticeDto } from './dto/create-practice.dto';
@@ -19,10 +20,12 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/decorators/current-user.decorator';
+import { MultiTenancyGuard } from 'src/auth/guards/multi-tenancy.guard';
 
 @ApiTags('practices')
 @Roles('admin', 'teacher', 'student')
 @Controller('practices')
+@UseGuards(MultiTenancyGuard)
 export class PracticesController {
   constructor(private readonly practicesService: PracticesService) {}
 

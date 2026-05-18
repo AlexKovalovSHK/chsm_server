@@ -7,14 +7,17 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { SubjectService } from '../service/subject.service';
 import { CreateSubjectDto } from '../dto/create-subject.dto';
 import { UpdateSubjectDto } from '../dto/update-subject.dto';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { MultiTenancyGuard } from 'src/auth/guards/multi-tenancy.guard';
 
 @ApiTags('Subjects')
 @Controller('subjects')
+@UseGuards(MultiTenancyGuard)
 export class SubjectController {
   constructor(private readonly subjectService: SubjectService) {}
 

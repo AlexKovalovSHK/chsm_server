@@ -36,4 +36,12 @@ export class NewUserDto {
   @IsString()
   @IsOptional()
   status?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'ID организации, к которой привязать пользователя. Если не указан — будет использована организация по умолчанию',
+  })
+  @IsString()
+  @IsOptional()
+  organizationId?: string;
 }

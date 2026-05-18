@@ -7,14 +7,17 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { GradebookService } from '../service/gradebook.service';
 import { CreateGradebookDto } from '../dto/create-gradebook.dto';
 import { UpdateGradebookDto } from '../dto/update-gradebook.dto';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { MultiTenancyGuard } from 'src/auth/guards/multi-tenancy.guard';
 
 @ApiTags('Gradebooks')
 @Controller('gradebooks')
+@UseGuards(MultiTenancyGuard)
 export class GradebookController {
   constructor(private readonly gradebookService: GradebookService) {}
 
@@ -23,7 +26,7 @@ export class GradebookController {
   async create(@Body() createDto: CreateGradebookDto) {
     return await this.gradebookService.create(createDto);
   }
-ф
+
   @ApiOperation({ summary: 'Получить список табелей' })
   @Get()
   async findAll() {

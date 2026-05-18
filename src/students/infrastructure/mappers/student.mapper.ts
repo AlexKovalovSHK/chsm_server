@@ -20,7 +20,9 @@ export class StudentMapper {
     });
   }
 
-  static toPersistence(student: DomainStudent): PrismaStudent {
+  static toPersistence(
+    student: DomainStudent,
+  ): Omit<PrismaStudent, 'organizationId'> {
     return {
       id: student.id,
       userId: student.userId,

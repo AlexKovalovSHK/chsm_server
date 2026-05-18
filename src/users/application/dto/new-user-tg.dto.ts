@@ -25,6 +25,11 @@ export class NewUserTgDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  organizationId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsEmail()
   email?: string;
 

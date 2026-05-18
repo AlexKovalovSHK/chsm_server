@@ -7,14 +7,17 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { StudentService } from '../../application/student.service';
 import { CreateStudentDto } from '../../application/dto/create-student.dto';
 import { UpdateStudentDto } from '../../application/dto/update-student.dto';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { MultiTenancyGuard } from 'src/auth/guards/multi-tenancy.guard';
 
 @ApiTags('Students')
 @Controller('students')
+@UseGuards(MultiTenancyGuard)
 export class StudentController {
   constructor(private readonly studentService: StudentService) {}
 

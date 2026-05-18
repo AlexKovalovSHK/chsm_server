@@ -1,4 +1,4 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { User } from '../domain/user.entity';
 import {
@@ -10,6 +10,8 @@ import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class PrismaUserRepository implements IUserRepository {
+  private readonly logger = new Logger(PrismaUserRepository.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async findById(id: string): Promise<User | null> {
@@ -82,7 +84,7 @@ export class PrismaUserRepository implements IUserRepository {
     return docs.map((doc) => UserMapper.toDomain(doc));
   }
 
-  async save(user: User): Promise<User> {
+  async save(user: User, organizationId?: string): Promise<User> {
     const persistence = UserMapper.toPersistence(user);
 
     const mongoId = user.id.toString();
@@ -117,6 +119,40 @@ export class PrismaUserRepository implements IUserRepository {
         updatedAt: new Date(),
       },
     });
+
+    // Всегда создаём OrgMember, если его нет (upsert)
+    // Покрывает: новых пользователей + существующих без OrgMember
+    const orgId =
+      organizationId ||
+      (
+        await this.prisma.organization.findUnique({
+          where: { slug: 'chsm_brass_eu' },
+          select: { id: true },
+        })
+      )?.id;
+
+    if (orgId) {
+      await this.prisma.orgMember
+        .upsert({
+          where: {
+            organizationId_userId: {
+              userId: doc.id,
+              organizationId: orgId,
+            },
+          },
+          update: {}, // если уже есть — ничего не меняем
+          create: {
+            userId: doc.id,
+            organizationId: orgId,
+            role: 'STUDENT',
+          },
+        })
+        .catch((err) => {
+          this.logger.warn(
+            `OrgMember upsert skipped: ${err instanceof Prisma.PrismaClientKnownRequestError ? err.code + ' - ' + err.message : err.message}`,
+          );
+        });
+    }
 
     return UserMapper.toDomain(doc);
   }

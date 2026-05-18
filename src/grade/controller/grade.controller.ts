@@ -11,13 +11,16 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { GradeService } from '../service/grade.service';
 import { CreateGradeDto } from '../dto/create-grade.dto';
 import { UpdateGradeDto } from '../dto/update-grade.dto';
 import { GradeEntry } from '@prisma/client';
+import { MultiTenancyGuard } from 'src/auth/guards/multi-tenancy.guard';
 
 @Controller('grades')
+@UseGuards(MultiTenancyGuard)
 @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
 export class GradeController {
   constructor(private readonly gradeService: GradeService) {}

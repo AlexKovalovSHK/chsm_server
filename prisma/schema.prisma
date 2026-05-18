@@ -8,54 +8,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id               Int       @id @default(autoincrement())
-  mongoId          String?   @unique @map("mongo_id")
-  firstName        String?   @map("first_name")
-  lastName         String?   @map("last_name")
-  username         String?
-  tel              String?
-  photoUrl         String?   @map("photo_url")
-  email            String?
-  tgId             String?   @map("tg_id")
-  googleId         String?   @map("google_id")
-  role             String    @default("student")
-  status           String    @default("active")
-  googleTokens     Json?     @map("google_tokens")
-  languageCode     String?   @map("language_code")
-  registrationStep String    @default("new") @map("registration_step")
-  isVerified       Boolean   @default(false) @map("is_verified")
-  isPremium        Boolean   @default(false) @map("is_premium")
-  platformId       String?   @map("platform_id")
-  metadata         Json      @default("{}")
-  sourceUser       String?   @map("source_user")
-  sourceTg         String?   @map("source_tg")
-  mergedAt         DateTime? @map("merged_at")
-  password         String?
-  createdAt        DateTime? @map("created_at")
-  updatedAt        DateTime? @map("updated_at")
-  studentProfile   Student?
-
-  @@map("users")
-}
-
-model GoogleAuth {
-  id           Int       @id @default(autoincrement())
-  mongoId      String?   @unique @map("mongo_id")
-  email        String?   @unique
-  isActive     Boolean   @default(true) @map("is_active")
-  accessToken  String?   @map("access_token")
-  refreshToken String?   @map("refresh_token")
-  expiryDate   BigInt?   @map("expiry_date")
-  scope        String?
-  tokenType    String?   @map("token_type")
-  createdAt    DateTime? @map("created_at")
-  updatedAt    DateTime? @map("updated_at")
-
-  @@map("google_auths")
-}
-
 // --- ENUMS ---
+
+enum OrgMemberRole {
+  OWNER
+  ADMIN
+  TEACHER
+  STUDENT
+  VIEWER
+}
 
 enum SessionStatus {
   PLANNED
@@ -88,61 +49,164 @@ enum PracticeStatus {
   APPROVED
 }
 
-// --- MODELS ---
+// --- AUTH MODELS ---
+
+model User {
+  id               Int       @id @default(autoincrement())
+  mongoId          String?   @unique @map("mongo_id")
+  firstName        String?   @map("first_name")
+  lastName         String?   @map("last_name")
+  username         String?
+  tel              String?
+  photoUrl         String?   @map("photo_url")
+  email            String?
+  tgId             String?   @map("tg_id")
+  googleId         String?   @map("google_id")
+  role             String    @default("student")
+  status           String    @default("active")
+  googleTokens     Json?     @map("google_tokens")
+  languageCode     String?   @map("language_code")
+  registrationStep String    @default("new") @map("registration_step")
+  isVerified       Boolean   @default(false) @map("is_verified")
+  isPremium        Boolean   @default(false) @map("is_premium")
+  platformId       String?   @map("platform_id")
+  metadata         Json      @default("{}")
+  sourceUser       String?   @map("source_user")
+  sourceTg         String?   @map("source_tg")
+  mergedAt         DateTime? @map("merged_at")
+  password         String?
+  createdAt        DateTime? @map("created_at")
+  updatedAt        DateTime? @map("updated_at")
+
+  studentProfiles Student[]
+  orgMemberships  OrgMember[]
+
+  @@map("users")
+}
+
+model GoogleAuth {
+  id           Int       @id @default(autoincrement())
+  mongoId      String?   @unique @map("mongo_id")
+  email        String?   @unique
+  isActive     Boolean   @default(true) @map("is_active")
+  accessToken  String?   @map("access_token")
+  refreshToken String?   @map("refresh_token")
+  expiryDate   BigInt?   @map("expiry_date")
+  scope        String?
+  tokenType    String?   @map("token_type")
+  createdAt    DateTime? @map("created_at")
+  updatedAt    DateTime? @map("updated_at")
+
+  @@map("google_auths")
+}
+
+// --- ORGANIZATION (multi-tenancy) ---
+
+model Organization {
+  id                String   @id @default(uuid()) @db.Uuid
+  slug              String   @unique // "chsm", "school-moscow" — используется в auth URL
+  name              String
+  domain            String?  @unique // "chsm.pro" — для автоопределения org по домену
+  googleWorkspaceId String?  @map("google_workspace_id") // домен Google Workspace школы
+  classroomConfig   Json?    @map("classroom_config") // OAuth токены для Classroom (зашифровано)
+  telegramBotToken  String?  @map("telegram_bot_token") // токен своего Telegram-бота
+  plan              String   @default("free") // "free" | "pro" | "enterprise"
+  settings          Json     @default("{}") // произвольные настройки школы
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  members       OrgMember[]
+  students      Student[]
+  academicYears AcademicYear[]
+  sessionLevels SessionLevel[]
+  sessionRuns   SessionRun[]
+  practices     Practice[]
+
+  @@map("organizations")
+}
+
+// Связь User ↔ Organization с ролью
+// Один пользователь может состоять в нескольких организациях
+model OrgMember {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  userId         Int           @map("user_id")
+  role           OrgMemberRole @default(VIEWER)
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@map("org_members")
+}
+
+// --- DOMAIN MODELS ---
 
 model AcademicYear {
-  id       String   @id @default(uuid()) @db.Uuid
-  label    String
-  startsAt DateTime @map("starts_at")
-  endsAt   DateTime @map("ends_at")
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  label          String
+  startsAt       DateTime @map("starts_at")
+  endsAt         DateTime @map("ends_at")
 
-  sessionRuns SessionRun[]
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sessionRuns  SessionRun[]
 
   @@map("academic_years")
 }
 
 model SessionLevel {
-  id          String  @id @default(uuid()) @db.Uuid
-  number      Int
-  title       String
-  description String? @db.Text
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  number         Int
+  title          String
+  description    String? @db.Text
 
-  sessionRuns SessionRun[]
-  subjects    Subject[]
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sessionRuns  SessionRun[]
+  subjects     Subject[]
 
   @@map("session_levels")
 }
 
 model Student {
   id                String   @id @default(uuid()) @db.Uuid
-  userId            String   @unique @map("user_id")
+  organizationId    String   @map("organization_id") @db.Uuid
+  userId            String   @map("user_id") // ссылка на User.mongoId
   instrument        String
   specialization    String
   name              String
-  nameRu            String
+  nameRu            String?   @map("name_ru")
   city              String?
   country           String?
-  telegramId        String?  @unique @map("telegram_id")
-  classroomUserId   String?  @unique @map("classroom_user_id")
+  telegramId        String?  @map("telegram_id")
+  classroomUserId   String?  @map("classroom_user_id")
   enrolledAt        DateTime @default(now()) @map("enrolled_at")
-  gradebookNumber   String   @unique @map("gradebook_number")
+  gradebookNumber   String   @map("gradebook_number")
   gradebookIssuedAt DateTime @default(now()) @map("gradebook_issued_at")
 
-  user User @relation(fields: [userId], references: [mongoId])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [mongoId])
 
   enrollments Enrollment[]
-  Practice    Practice[]
+  practices   Practice[]
 
+  // Уникальность gradebookNumber и telegramId — в рамках организации
+  @@unique([organizationId, gradebookNumber])
+  @@unique([organizationId, telegramId])
+  @@unique([organizationId, userId])
   @@map("students")
 }
 
 model SessionRun {
   id                String        @id @default(uuid()) @db.Uuid
+  organizationId    String        @map("organization_id") @db.Uuid
   levelId           String        @map("level_id") @db.Uuid
   academicYearId    String        @map("academic_year_id") @db.Uuid
   classroomCourseId String?       @map("classroom_course_id")
   status            SessionStatus @default(PLANNED)
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   level        SessionLevel @relation(fields: [levelId], references: [id])
   academicYear AcademicYear @relation(fields: [academicYearId], references: [id])
   enrollments  Enrollment[]
@@ -154,13 +218,14 @@ model SessionRun {
 model Subject {
   id                    String  @id @default(uuid()) @db.Uuid
   levelId               String  @map("level_id") @db.Uuid
+  sessionRunId          String  @map("session_run_id") @db.Uuid
   title                 String
   hours                 Int?
   classroomCourseworkId String? @map("classroom_coursework_id")
   hasClassroom          Boolean @default(false) @map("has_classroom")
-  sessionRunId          String  @map("session_run_id") @db.Uuid
   scale                 Int
   isCore                Boolean @default(false) @map("is_core")
+  // teacher_name убран — преподаватель хранится в Enrollment
 
   level        SessionLevel @relation(fields: [levelId], references: [id])
   sessionRun   SessionRun   @relation(fields: [sessionRunId], references: [id])
@@ -177,12 +242,12 @@ model Enrollment {
   status       EnrollmentStatus @default(ENROLLED)
   approvedAt   DateTime?        @map("approved_at")
   approvedBy   String?          @map("approved_by")
-  teacherName  String?          @map("teacher_name")
+  teacherName  String?          @map("teacher_name") // преподаватель специальности — свой у каждого студента
 
   student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   sessionRun   SessionRun   @relation(fields: [sessionRunId], references: [id])
   gradeEntries GradeEntry[]
-  Gradebook    Gradebook[]
+  gradebooks   Gradebook[]
 
   @@map("enrollments")
 }
@@ -192,7 +257,7 @@ model GradeEntry {
   enrollmentId String   @map("enrollment_id") @db.Uuid
   subjectId    String   @map("subject_id") @db.Uuid
   value        Int
-  source       String? // Например, "Google Classroom" или "Manual"
+  source       String? // "Google Classroom" | "Manual"
   recordedAt   DateTime @default(now()) @map("recorded_at")
 
   enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
@@ -206,7 +271,7 @@ model Gradebook {
   enrollmentId String          @map("enrollment_id") @db.Uuid
   status       GradebookStatus @default(DRAFT)
   approvedAt   DateTime?       @map("approved_at")
-  approvedBy   String?         @map("approved_by") // ID админа или имя
+  approvedBy   String?         @map("approved_by")
 
   enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
 
@@ -214,29 +279,31 @@ model Gradebook {
 }
 
 model Practice {
-  id              String @id @default(uuid()) @db.Uuid
-  student_id      String @db.Uuid
-  practice_type   String // 'LITURGICAL' | 'PEDAGOGICAL'
-  practice_status String @default("DRAFT") // 'DRAFT' | 'SUBMITTED' | 'APPROVED'
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  studentId      String         @map("student_id") @db.Uuid
+  practiceType   PracticeType   @map("practice_type")
+  practiceStatus PracticeStatus @default(DRAFT) @map("practice_status")
 
-  student      Student         @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  student      Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
   entries      PracticeEntry[]
 
-  @@unique([student_id, practice_type])
+  @@unique([studentId, practiceType])
   @@map("practices")
 }
 
 model PracticeEntry {
-  id           String    @id @default(uuid()) @db.Uuid
-  practice_id  String    @db.Uuid
-  title        String
-  service_kind String? // только для LITURGICAL
-  location     String? // только для PEDAGOGICAL
-  date         DateTime  @db.Date
-  approved_at  DateTime?
-  approved_by  String?
+  id          String    @id @default(uuid()) @db.Uuid
+  practiceId  String    @map("practice_id") @db.Uuid
+  title       String
+  serviceKind String?   @map("service_kind") // только для LITURGICAL
+  location    String? // только для PEDAGOGICAL
+  date        DateTime  @db.Date
+  approvedAt  DateTime? @map("approved_at")
+  approvedBy  String?   @map("approved_by")
 
-  practice Practice @relation(fields: [practice_id], references: [id], onDelete: Cascade)
+  practice Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
 
   @@map("practice_entries")
 }

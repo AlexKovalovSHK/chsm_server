@@ -61,20 +61,23 @@ export class UserService {
 
   async update(
     id: string,
-    updateData: UpdateUserDto,
+    updateData: UpdateUserDto & { organizationId?: string },
   ): Promise<UserResponseDto> {
     const user = await this.repo.findById(id);
     if (!user) throw new NotFoundException('Пользователь не найден');
 
+    // Извлекаем organizationId до передачи в updateDetails (чтобы не положить в сущность)
+    const { organizationId, ...cleanData } = updateData;
+
     // Если у пользователя нет пароля, но есть email (пришедший или существующий), создаем его
-    const emailForPassword = updateData.email || user.email;
+    const emailForPassword = cleanData.email || user.email;
     if (!user.password && emailForPassword) {
       const cleanEmail = emailForPassword.toLowerCase().trim();
-      (updateData as any).password = await bcrypt.hash(cleanEmail, 10);
+      (cleanData as any).password = await bcrypt.hash(cleanEmail, 10);
     }
 
-    user.updateDetails(updateData);
-    const saved = await this.repo.save(user);
+    user.updateDetails(cleanData);
+    const saved = await this.repo.save(user, organizationId);
     return UserMapper.toResponseDto(saved);
   }
 
@@ -203,7 +206,7 @@ export class UserService {
         : UserStatus.ACTIVE,
       password: passwordHash,
     });
-    const saved = await this.repo.save(user);
+    const saved = await this.repo.save(user, dto.organizationId);
     return UserMapper.toResponseDto(saved);
   }
 

@@ -13,7 +13,7 @@ export interface IUserRepository {
   findAll(filter: UserFilter): Promise<User[]>;
   findAdmin(): Promise<User | null>;
   findAllWithGoogle(): Promise<User[]>;
-  save(user: User): Promise<User>;
+  save(user: User, organizationId?: string): Promise<User>;
   findByGoogleId(googleId: string): Promise<User | null>;
   delete(id: string): Promise<void>;
 }

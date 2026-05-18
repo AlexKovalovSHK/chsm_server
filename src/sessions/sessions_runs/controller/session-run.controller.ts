@@ -7,14 +7,17 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { SessionRunService } from '../service/session-run.service';
 import { CreateSessionRunDto } from '../dto/create-session-run.dto';
 import { UpdateSessionRunDto } from '../dto/update-session-run.dto';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { MultiTenancyGuard } from 'src/auth/guards/multi-tenancy.guard';
 
 @ApiTags('Session runs')
 @Controller('session-runs')
+@UseGuards(MultiTenancyGuard)
 export class SessionRunController {
   constructor(private readonly service: SessionRunService) {}
 

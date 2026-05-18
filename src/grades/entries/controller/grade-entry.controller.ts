@@ -7,14 +7,17 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { GradeEntryService } from '../service/grade-entry.service';
 import { CreateGradeEntryDto } from '../dto/create-grade-entry.dto';
 import { UpdateGradeEntryDto } from '../dto/update-grade-entry.dto';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { MultiTenancyGuard } from 'src/auth/guards/multi-tenancy.guard';
 
 @ApiTags('Grade entries')
 @Controller('grade-entries')
+@UseGuards(MultiTenancyGuard)
 export class GradeEntryController {
   constructor(private readonly gradeEntryService: GradeEntryService) {}
 

@@ -4,10 +4,22 @@ import { UpdateEnrollmentDto } from '../dto/update-enrollment.dto';
 import { ApprovedEnrollment } from '../dto/apruve-enrollment.dto';
 import { EnrollmentDto } from '../dto/enrollment.dto';
 import { ApiOperation, ApiParam, ApiTags, ApiResponse } from '@nestjs/swagger';
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { MultiTenancyGuard } from 'src/auth/guards/multi-tenancy.guard';
 
 @ApiTags('Enrollments')
 @Controller('enrollments')
+@UseGuards(MultiTenancyGuard)
 export class EnrollmentController {
   constructor(private readonly enrollmentService: EnrollmentService) {}
 

@@ -7,14 +7,17 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { AcademicYearService } from '../service/academic-year.service';
 import { CreateAcademicYearDto } from '../dto/create-academic-year.dto';
 import { UpdateAcademicYearDto } from '../dto/update-academic-year.dto';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { MultiTenancyGuard } from 'src/auth/guards/multi-tenancy.guard';
 
 @ApiTags('Academic years')
 @Controller('academic-years')
+@UseGuards(MultiTenancyGuard)
 export class AcademicYearController {
   constructor(private readonly academicYearService: AcademicYearService) {}
 

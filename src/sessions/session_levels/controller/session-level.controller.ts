@@ -7,14 +7,17 @@ import {
   Param,
   Delete,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { SessionLevelService } from '../service/session-level.service';
 import { CreateSessionLevelDto } from '../dto/create-session-level.dto';
 import { UpdateSessionLevelDto } from '../dto/update-session-level.dto';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
+import { MultiTenancyGuard } from 'src/auth/guards/multi-tenancy.guard';
 
 @ApiTags('Session levels')
 @Controller('session-levels')
+@UseGuards(MultiTenancyGuard)
 export class SessionLevelController {
   constructor(private readonly service: SessionLevelService) {}
 

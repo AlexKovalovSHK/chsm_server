@@ -31,7 +31,9 @@ export class TgInternalService {
   }
 
   async syncUserData(dto: NewUserTgDto) {
-    const { tgId, ...updateData } = dto;
+    console.log(dto);
+
+    const { tgId, organizationId, ...updateData } = dto;
 
     let user;
     try {
@@ -51,10 +53,14 @@ export class TgInternalService {
         lastName: updateData.lastName,
         registrationStep: updateData.registrationStep || 'new',
         status: 'pending',
+        organizationId,
       });
     } else {
       // Если пользователь есть, просто обновляем пришедшие поля
-      user = await this.userService.update(user.id.toString(), updateData);
+      user = await this.userService.update(user.id.toString(), {
+        ...updateData,
+        organizationId,
+      } as any);
     }
 
     return user;

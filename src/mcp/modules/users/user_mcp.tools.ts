@@ -38,7 +38,7 @@ export class UserMcpTool {
         `MCP list-users with filters: ${JSON.stringify(filters)}`,
       );
       const users = await this.userService.findAll(filters);
-      return users.map((user) => user.toJSON());
+      return users;
     } catch (err: any) {
       this.logger.error(`Error listing users: ${err.message}`);
       return { error: err.message };
@@ -58,7 +58,7 @@ export class UserMcpTool {
     try {
       this.logger.debug(`MCP get-user-by-id: ${userId}`);
       const user = await this.userService.findById(userId);
-      return user ? user.toJSON() : { error: 'User not found' };
+      return user ? user : { error: 'User not found' };
     } catch (err: any) {
       this.logger.error(`Error getting user ${userId}: ${err.message}`);
       return { error: err.message };
@@ -76,7 +76,7 @@ export class UserMcpTool {
     try {
       this.logger.debug(`MCP find-user-by-email: ${email}`);
       const user = await this.userService.findByEmail(email);
-      return user ? user.toJSON() : { error: 'User not found' };
+      return user ? user : { error: 'User not found' };
     } catch (err: any) {
       this.logger.error(`Error finding user by email ${email}: ${err.message}`);
       return { error: err.message };
@@ -94,7 +94,7 @@ export class UserMcpTool {
     try {
       this.logger.debug(`MCP find-user-by-tg-id: ${tgId}`);
       const user = await this.userService.findByTgId(tgId);
-      return user ? user.toJSON() : { error: 'User not found' };
+      return user ? user : { error: 'User not found' };
     } catch (err: any) {
       this.logger.error(
         `Error finding user by Telegram ID ${tgId}: ${err.message}`,

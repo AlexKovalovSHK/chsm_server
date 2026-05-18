@@ -8,12 +8,12 @@ import {
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { MultiTenancyGuard } from 'src/auth/guards/multi-tenancy.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 
 @ApiTags('Enrollments-v2 for students')
 @Controller('enrollments/v2/students')
-@UseGuards(JwtAuthGuard)
+@UseGuards(MultiTenancyGuard)
 @Roles('student', 'admin', 'teacher')
 export class EnrollmentControllerV2 {
   constructor(private readonly enrollmentService: EnrollmentService) {}

@@ -1,11 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { REQUEST } from '@nestjs/core';
+import type { Request } from 'express';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateAcademicYearDto } from '../dto/create-academic-year.dto';
 import { UpdateAcademicYearDto } from '../dto/update-academic-year.dto';
 
 @Injectable()
 export class AcademicYearService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly currentOrgId: string;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(REQUEST) private readonly request: Request,
+  ) {
+    this.currentOrgId = this.request.currentOrgId as string;
+  }
 
   async create(dto: CreateAcademicYearDto) {
     return this.prisma.academicYear.create({
@@ -13,12 +22,14 @@ export class AcademicYearService {
         label: dto.label,
         startsAt: new Date(dto.startsAt),
         endsAt: new Date(dto.endsAt),
+        organizationId: this.currentOrgId,
       },
     });
   }
 
   async findAll() {
     return this.prisma.academicYear.findMany({
+      where: { organizationId: this.currentOrgId },
       orderBy: {
         startsAt: 'desc',
       },
@@ -27,7 +38,7 @@ export class AcademicYearService {
 
   async findOne(id: string) {
     const year = await this.prisma.academicYear.findUnique({
-      where: { id },
+      where: { id, organizationId: this.currentOrgId },
     });
 
     if (!year) {
@@ -41,7 +52,7 @@ export class AcademicYearService {
     await this.findOne(id);
 
     return this.prisma.academicYear.update({
-      where: { id },
+      where: { id, organizationId: this.currentOrgId },
       data: {
         ...dto,
         ...(dto.startsAt && { startsAt: new Date(dto.startsAt) }),
@@ -54,7 +65,7 @@ export class AcademicYearService {
     await this.findOne(id);
 
     return this.prisma.academicYear.delete({
-      where: { id },
+      where: { id, organizationId: this.currentOrgId },
     });
   }
 
@@ -64,6 +75,7 @@ export class AcademicYearService {
       where: {
         startsAt: { lte: now },
         endsAt: { gte: now },
+        organizationId: this.currentOrgId,
       },
     });
   }

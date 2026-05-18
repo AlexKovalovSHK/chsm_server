@@ -82,6 +82,17 @@ export class AiBridgeService {
     }
   }
 
+  async *chatOpenAIStream(
+    messages: any[],
+    token: string,
+  ): AsyncGenerator<string, void, unknown> {
+    yield 'Streaming is not implemented yet';
+  }
+
+  async transcribe(buffer: Buffer, mimeType: string): Promise<string> {
+    return 'Transcription is not implemented yet';
+  }
+
   /**
    * Маппинг сообщений для Google Gemini
    */
