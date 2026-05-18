@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { PracticesService } from './practices.service';
 import { CreatePracticeDto } from './dto/create-practice.dto';
@@ -20,6 +21,7 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { JwtPayload } from '../auth/decorators/current-user.decorator';
+import type { Request } from 'express';
 import { MultiTenancyGuard } from 'src/auth/guards/multi-tenancy.guard';
 
 @ApiTags('practices')
@@ -35,8 +37,11 @@ export class PracticesController {
   create(
     @Body() createPracticeDto: CreatePracticeDto,
     @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
   ): Promise<PracticeDto> {
-    return this.practicesService.create(createPracticeDto, user);
+    const orgId = (req.headers['x-org-id'] ||
+      (req as any).currentOrgId) as string;
+    return this.practicesService.create(createPracticeDto, user, orgId);
   }
 
   @Get()
@@ -44,8 +49,13 @@ export class PracticesController {
     summary: 'Get all practice journals for the current student',
   })
   @ApiResponse({ status: 200, description: 'Success', type: [PracticeDto] })
-  findAll(@CurrentUser() user?: JwtPayload): Promise<PracticeDto[]> {
-    return this.practicesService.findAll(user);
+  findAll(
+    @Req() req: Request,
+    @CurrentUser() user?: JwtPayload,
+  ): Promise<PracticeDto[]> {
+    const orgId = (req.headers['x-org-id'] ||
+      (req as any).currentOrgId) as string;
+    return this.practicesService.findAll(orgId, user);
   }
 
   @Get(':id')
@@ -54,8 +64,11 @@ export class PracticesController {
   findOne(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
   ): Promise<PracticeDto> {
-    return this.practicesService.findOne(id, user);
+    const orgId = (req.headers['x-org-id'] ||
+      (req as any).currentOrgId) as string;
+    return this.practicesService.findOne(id, user, orgId);
   }
 
   @Patch(':id')
@@ -65,8 +78,11 @@ export class PracticesController {
     @Param('id') id: string,
     @Body() updatePracticeDto: UpdatePracticeDto,
     @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
   ): Promise<PracticeDto> {
-    return this.practicesService.update(id, updatePracticeDto, user);
+    const orgId = (req.headers['x-org-id'] ||
+      (req as any).currentOrgId) as string;
+    return this.practicesService.update(id, updatePracticeDto, user, orgId);
   }
 
   @Delete(':id')
@@ -75,8 +91,11 @@ export class PracticesController {
   remove(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
   ): Promise<void> {
-    return this.practicesService.remove(id, user);
+    const orgId = (req.headers['x-org-id'] ||
+      (req as any).currentOrgId) as string;
+    return this.practicesService.remove(id, user, orgId);
   }
 
   // --- Practice Entries ---
@@ -88,8 +107,16 @@ export class PracticesController {
     @Param('practiceId') practiceId: string,
     @Body() createEntryDto: CreatePracticeEntryDto,
     @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
   ): Promise<PracticeEntryDto> {
-    return this.practicesService.createEntry(practiceId, createEntryDto, user);
+    const orgId = (req.headers['x-org-id'] ||
+      (req as any).currentOrgId) as string;
+    return this.practicesService.createEntry(
+      practiceId,
+      createEntryDto,
+      user,
+      orgId,
+    );
   }
 
   @Get(':practiceId/entries')
@@ -102,8 +129,11 @@ export class PracticesController {
   findEntries(
     @Param('practiceId') practiceId: string,
     @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
   ): Promise<PracticeEntryDto[]> {
-    return this.practicesService.findEntries(practiceId, user);
+    const orgId = (req.headers['x-org-id'] ||
+      (req as any).currentOrgId) as string;
+    return this.practicesService.findEntries(practiceId, user, orgId);
   }
 
   @Patch(':practiceId/entries/:entryId')
@@ -114,12 +144,16 @@ export class PracticesController {
     @Param('entryId') entryId: string,
     @Body() updateEntryDto: UpdatePracticeEntryDto,
     @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
   ): Promise<PracticeEntryDto> {
+    const orgId = (req.headers['x-org-id'] ||
+      (req as any).currentOrgId) as string;
     return this.practicesService.updateEntry(
       practiceId,
       entryId,
       updateEntryDto,
       user,
+      orgId,
     );
   }
 
@@ -147,7 +181,10 @@ export class PracticesController {
     @Param('practiceId') practiceId: string,
     @Param('entryId') entryId: string,
     @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
   ): Promise<void> {
-    return this.practicesService.removeEntry(practiceId, entryId, user);
+    const orgId = (req.headers['x-org-id'] ||
+      (req as any).currentOrgId) as string;
+    return this.practicesService.removeEntry(practiceId, entryId, user, orgId);
   }
 }

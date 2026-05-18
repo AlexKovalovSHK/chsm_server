@@ -2,10 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-  Inject,
 } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
-import type { Request } from 'express';
 import { IStudentRepository } from '../domain/repositories/student.repository.interface';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
@@ -15,21 +12,14 @@ import { StudentFullReportDto } from './dto/student_full_reaport.dto';
 
 @Injectable()
 export class StudentService {
-  private readonly currentOrgId: string;
+  constructor(private readonly studentRepository: IStudentRepository) {}
 
-  constructor(
-    private readonly studentRepository: IStudentRepository,
-    @Inject(REQUEST) private readonly request: Request,
-  ) {
-    this.currentOrgId = this.request.currentOrgId as string;
-  }
-
-  async create(dto: CreateStudentDto) {
+  async create(dto: CreateStudentDto, organizationId: string) {
     console.log(dto);
 
     const existing = await this.studentRepository.findByUserId(
       dto.userId,
-      this.currentOrgId,
+      organizationId,
     );
     if (existing) {
       throw new ConflictException(
@@ -55,28 +45,28 @@ export class StudentService {
         : new Date(),
     });
 
-    return this.studentRepository.create(student, this.currentOrgId);
+    return this.studentRepository.create(student, organizationId);
   }
 
-  async findAll() {
-    return this.studentRepository.findAll(this.currentOrgId);
+  async findAll(organizationId: string) {
+    return this.studentRepository.findAll(organizationId);
   }
 
-  async findOne(id: string) {
-    const student = await this.studentRepository.findById(
-      id,
-      this.currentOrgId,
-    );
+  async findOne(id: string, organizationId: string) {
+    const student = await this.studentRepository.findById(id, organizationId);
     if (!student) {
       throw new NotFoundException(`Student with ID ${id} not found`);
     }
     return student;
   }
 
-  async findOneByUserId(userId: string): Promise<Student> {
+  async findOneByUserId(
+    userId: string,
+    organizationId: string,
+  ): Promise<Student> {
     const student = await this.studentRepository.findByUserId(
       userId,
-      this.currentOrgId,
+      organizationId,
     );
     if (!student) {
       throw new NotFoundException(`Student with ID ${userId} not found`);
@@ -84,11 +74,14 @@ export class StudentService {
     return student;
   }
 
-  async fullreportByStudentId(id: string): Promise<StudentFullReportDto> {
+  async fullreportByStudentId(
+    id: string,
+    organizationId: string,
+  ): Promise<StudentFullReportDto> {
     const studentData =
       await this.studentRepository.getStudentWithFullRelations(
         id,
-        this.currentOrgId,
+        organizationId,
       );
 
     if (!studentData) {
@@ -172,8 +165,8 @@ export class StudentService {
     };
   }
 
-  async update(id: string, dto: UpdateStudentDto) {
-    const student = await this.findOne(id);
+  async update(id: string, dto: UpdateStudentDto, organizationId: string) {
+    const student = await this.findOne(id, organizationId);
 
     student.updateProfile({
       ...dto,
@@ -183,11 +176,11 @@ export class StudentService {
         : undefined,
     });
 
-    return this.studentRepository.update(student, this.currentOrgId);
+    return this.studentRepository.update(student, organizationId);
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
-    return this.studentRepository.remove(id, this.currentOrgId);
+  async remove(id: string, organizationId: string) {
+    await this.findOne(id, organizationId);
+    return this.studentRepository.remove(id, organizationId);
   }
 }

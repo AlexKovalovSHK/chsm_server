@@ -1,11 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { Tool } from 'src/mcp/decorators';
 import { StudentService } from 'src/students/application/student.service';
+import { OrganizationService } from 'src/organization/organization.service';
 import { z } from 'zod';
 
 @Injectable()
 export class StudentsMcpTool {
-  constructor(private readonly studentService: StudentService) {}
+  private defaultOrgId: string | null = null;
+
+  constructor(
+    private readonly studentService: StudentService,
+    private readonly orgService: OrganizationService,
+  ) {}
+
+  private async getOrgId(): Promise<string> {
+    if (!this.defaultOrgId) {
+      const org = await this.orgService.getDefaultOrganization();
+      this.defaultOrgId = org.id;
+    }
+    return this.defaultOrgId;
+  }
 
   @Tool({
     name: 'list-students',
@@ -13,7 +27,8 @@ export class StudentsMcpTool {
   })
   async listStudents() {
     try {
-      return await this.studentService.findAll();
+      const orgId = await this.getOrgId();
+      return await this.studentService.findAll(orgId);
     } catch (err: any) {
       console.error('Error listing students:', err.message);
       return { error: err.message };
@@ -43,7 +58,8 @@ export class StudentsMcpTool {
     }
 
     try {
-      return await this.studentService.findOne(studentId);
+      const orgId = await this.getOrgId();
+      return await this.studentService.findOne(studentId, orgId);
     } catch (err: any) {
       return { error: err.message };
     }

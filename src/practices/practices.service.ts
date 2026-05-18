@@ -4,10 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
-  Inject,
 } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
-import type { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePracticeDto } from './dto/create-practice.dto';
 import { UpdatePracticeDto } from './dto/update-practice.dto';
@@ -20,14 +17,7 @@ import type { JwtPayload } from '../auth/decorators/current-user.decorator';
 
 @Injectable()
 export class PracticesService {
-  private readonly currentOrgId: string;
-
-  constructor(
-    private prisma: PrismaService,
-    @Inject(REQUEST) private readonly request: Request,
-  ) {
-    this.currentOrgId = this.request.currentOrgId as string;
-  }
+  constructor(private prisma: PrismaService) {}
 
   // ---------------------------------------------------------------------------
   // Practices CRUD
@@ -36,12 +26,14 @@ export class PracticesService {
   async create(
     createPracticeDto: CreatePracticeDto,
     user: JwtPayload,
+    organizationId: string,
   ): Promise<PracticeDto> {
     // Student can create a practice only for himself
     if (user.role === 'student') {
       await this.assertStudentIdentity(
         createPracticeDto.studentId,
         user.userId,
+        organizationId,
       );
     }
 
@@ -64,19 +56,22 @@ export class PracticesService {
       data: {
         studentId: createPracticeDto.studentId,
         practiceType: createPracticeDto.practiceType,
-        organizationId: this.currentOrgId,
+        organizationId,
       },
     });
 
     return this.mapToPracticeDto(practice);
   }
 
-  async findAll(user?: JwtPayload): Promise<PracticeDto[]> {
-    const where: any = { organizationId: this.currentOrgId };
+  async findAll(
+    organizationId: string,
+    user?: JwtPayload,
+  ): Promise<PracticeDto[]> {
+    const where: any = { organizationId };
 
     // For student — only their own practices
     if (user && user.role === 'student') {
-      const studentId = await this.getStudentId(user.userId);
+      const studentId = await this.getStudentId(user.userId, organizationId);
       if (!studentId) {
         return [];
       }
@@ -88,9 +83,13 @@ export class PracticesService {
     return practices.map((p) => this.mapToPracticeDto(p));
   }
 
-  async findOne(id: string, user: JwtPayload): Promise<PracticeDto> {
+  async findOne(
+    id: string,
+    user: JwtPayload,
+    organizationId: string,
+  ): Promise<PracticeDto> {
     const practice = await this.prisma.practice.findUnique({
-      where: { id, organizationId: this.currentOrgId },
+      where: { id, organizationId },
       include: { entries: true },
     });
 
@@ -105,9 +104,10 @@ export class PracticesService {
     id: string,
     updatePracticeDto: UpdatePracticeDto,
     user: JwtPayload,
+    organizationId: string,
   ): Promise<PracticeDto> {
     const practice = await this.prisma.practice.findUnique({
-      where: { id, organizationId: this.currentOrgId },
+      where: { id, organizationId },
     });
     if (!practice) {
       throw new NotFoundException('Practice not found');
@@ -115,7 +115,11 @@ export class PracticesService {
 
     // Student can update only his own practice
     if (user.role === 'student') {
-      await this.assertPracticeOwnership(practice.studentId, user.userId);
+      await this.assertPracticeOwnership(
+        practice.studentId,
+        user.userId,
+        organizationId,
+      );
     }
 
     const updated = await this.prisma.practice.update({
@@ -128,9 +132,13 @@ export class PracticesService {
     return this.mapToPracticeDto(updated);
   }
 
-  async remove(id: string, user: JwtPayload): Promise<void> {
+  async remove(
+    id: string,
+    user: JwtPayload,
+    organizationId: string,
+  ): Promise<void> {
     const practice = await this.prisma.practice.findUnique({
-      where: { id, organizationId: this.currentOrgId },
+      where: { id, organizationId },
     });
     if (!practice) {
       throw new NotFoundException('Practice not found');
@@ -138,7 +146,11 @@ export class PracticesService {
 
     // Student can delete only his own practice
     if (user.role === 'student') {
-      await this.assertPracticeOwnership(practice.studentId, user.userId);
+      await this.assertPracticeOwnership(
+        practice.studentId,
+        user.userId,
+        organizationId,
+      );
     }
 
     await this.prisma.practice.delete({
@@ -154,9 +166,10 @@ export class PracticesService {
     practiceId: string,
     createDto: CreatePracticeEntryDto,
     user: JwtPayload,
+    organizationId: string,
   ): Promise<PracticeEntryDto> {
     const practice = await this.prisma.practice.findUnique({
-      where: { id: practiceId, organizationId: this.currentOrgId },
+      where: { id: practiceId, organizationId },
     });
     if (!practice) {
       throw new NotFoundException('Practice not found');
@@ -164,7 +177,11 @@ export class PracticesService {
 
     // Student can add entries only to his own practice
     if (user.role === 'student') {
-      await this.assertPracticeOwnership(practice.studentId, user.userId);
+      await this.assertPracticeOwnership(
+        practice.studentId,
+        user.userId,
+        organizationId,
+      );
     }
 
     if (practice.practiceType === 'LITURGICAL' && !createDto.serviceKind) {
@@ -197,9 +214,10 @@ export class PracticesService {
   async findEntries(
     practiceId: string,
     user: JwtPayload,
+    organizationId: string,
   ): Promise<PracticeEntryDto[]> {
     const practice = await this.prisma.practice.findUnique({
-      where: { id: practiceId, organizationId: this.currentOrgId },
+      where: { id: practiceId, organizationId },
     });
     if (!practice) {
       throw new NotFoundException('Practice not found');
@@ -207,7 +225,11 @@ export class PracticesService {
 
     // Student can see entries only of his own practice
     if (user.role === 'student') {
-      await this.assertPracticeOwnership(practice.studentId, user.userId);
+      await this.assertPracticeOwnership(
+        practice.studentId,
+        user.userId,
+        organizationId,
+      );
     }
 
     const entries = await this.prisma.practiceEntry.findMany({
@@ -222,9 +244,10 @@ export class PracticesService {
     entryId: string,
     updateDto: UpdatePracticeEntryDto,
     user: JwtPayload,
+    organizationId: string,
   ): Promise<PracticeEntryDto> {
     const practice = await this.prisma.practice.findUnique({
-      where: { id: practiceId, organizationId: this.currentOrgId },
+      where: { id: practiceId, organizationId },
     });
     if (!practice) {
       throw new NotFoundException('Practice not found');
@@ -232,7 +255,11 @@ export class PracticesService {
 
     // Student can update entries only in his own practice
     if (user.role === 'student') {
-      await this.assertPracticeOwnership(practice.studentId, user.userId);
+      await this.assertPracticeOwnership(
+        practice.studentId,
+        user.userId,
+        organizationId,
+      );
     }
 
     const entry = await this.prisma.practiceEntry.findFirst({
@@ -314,9 +341,10 @@ export class PracticesService {
     practiceId: string,
     entryId: string,
     user: JwtPayload,
+    organizationId: string,
   ): Promise<void> {
     const practice = await this.prisma.practice.findUnique({
-      where: { id: practiceId, organizationId: this.currentOrgId },
+      where: { id: practiceId, organizationId },
     });
     if (!practice) {
       throw new NotFoundException('Practice not found');
@@ -324,7 +352,11 @@ export class PracticesService {
 
     // Student can delete entries only in his own practice
     if (user.role === 'student') {
-      await this.assertPracticeOwnership(practice.studentId, user.userId);
+      await this.assertPracticeOwnership(
+        practice.studentId,
+        user.userId,
+        organizationId,
+      );
     }
 
     const entry = await this.prisma.practiceEntry.findFirst({
@@ -345,10 +377,13 @@ export class PracticesService {
   /**
    * Returns the student's internal id by their user's mongoId, or null if not found.
    */
-  private async getStudentId(userId: string): Promise<string | null> {
+  private async getStudentId(
+    userId: string,
+    organizationId: string,
+  ): Promise<string | null> {
     const student = await this.prisma.student.findUnique({
       where: {
-        organizationId_userId: { userId, organizationId: this.currentOrgId },
+        organizationId_userId: { userId, organizationId },
       },
       select: { id: true },
     });
@@ -362,9 +397,10 @@ export class PracticesService {
   private async assertStudentIdentity(
     studentId: string,
     userId: string,
+    organizationId: string,
   ): Promise<void> {
     const student = await this.prisma.student.findFirst({
-      where: { id: studentId, userId, organizationId: this.currentOrgId },
+      where: { id: studentId, userId, organizationId },
       select: { id: true },
     });
 
@@ -380,9 +416,10 @@ export class PracticesService {
   private async assertPracticeOwnership(
     studentId: string,
     userId: string,
+    organizationId: string,
   ): Promise<void> {
     const student = await this.prisma.student.findFirst({
-      where: { id: studentId, userId, organizationId: this.currentOrgId },
+      where: { id: studentId, userId, organizationId },
       select: { id: true },
     });
 

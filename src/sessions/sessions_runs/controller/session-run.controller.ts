@@ -8,7 +8,9 @@ import {
   Delete,
   ParseUUIDPipe,
   UseGuards,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { SessionRunService } from '../service/session-run.service';
 import { CreateSessionRunDto } from '../dto/create-session-run.dto';
 import { UpdateSessionRunDto } from '../dto/update-session-run.dto';
@@ -23,37 +25,48 @@ export class SessionRunController {
 
   @ApiOperation({ summary: 'Создать запуск сессии' })
   @Post()
-  create(@Body() dto: CreateSessionRunDto) {
-    return this.service.create(dto);
+  create(@Req() req: Request, @Body() dto: CreateSessionRunDto) {
+    const orgId = (req.headers['x-org-id'] ||
+      (req as any).currentOrgId) as string;
+    return this.service.create(dto, orgId);
   }
 
   @ApiOperation({ summary: 'Получить список запусков сессии' })
   @Get()
-  findAll() {
-    return this.service.findAll();
+  findAll(@Req() req: Request) {
+    const orgId = (req.headers['x-org-id'] ||
+      (req as any).currentOrgId) as string;
+    return this.service.findAll(orgId);
   }
 
   @ApiOperation({ summary: 'Получить запуск сессии по ID' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.findOne(id);
+  findOne(@Req() req: Request, @Param('id', ParseUUIDPipe) id: string) {
+    const orgId = (req.headers['x-org-id'] ||
+      (req as any).currentOrgId) as string;
+    return this.service.findOne(id, orgId);
   }
 
   @ApiOperation({ summary: 'Обновить запуск сессии' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @Patch(':id')
   update(
+    @Req() req: Request,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateSessionRunDto,
   ) {
-    return this.service.update(id, dto);
+    const orgId = (req.headers['x-org-id'] ||
+      (req as any).currentOrgId) as string;
+    return this.service.update(id, dto, orgId);
   }
 
   @ApiOperation({ summary: 'Удалить запуск сессии' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.remove(id);
+  remove(@Req() req: Request, @Param('id', ParseUUIDPipe) id: string) {
+    const orgId = (req.headers['x-org-id'] ||
+      (req as any).currentOrgId) as string;
+    return this.service.remove(id, orgId);
   }
 }

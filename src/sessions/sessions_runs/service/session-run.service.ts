@@ -1,61 +1,54 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
-import { REQUEST } from '@nestjs/core';
-import type { Request } from 'express';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateSessionRunDto } from '../dto/create-session-run.dto';
 import { UpdateSessionRunDto } from '../dto/update-session-run.dto';
 
 @Injectable()
 export class SessionRunService {
-  private readonly currentOrgId: string;
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor(
-    private readonly prisma: PrismaService,
-    @Inject(REQUEST) private readonly request: Request,
-  ) {
-    this.currentOrgId = this.request.currentOrgId as string;
-  }
-
-  async create(dto: CreateSessionRunDto) {
+  async create(dto: CreateSessionRunDto, organizationId: string) {
     return this.prisma.sessionRun.create({
-      data: { ...dto, organizationId: this.currentOrgId },
+      data: { ...dto, organizationId },
       include: { level: true, academicYear: true, subjects: true },
     });
   }
 
-  async findAll() {
+  async findAll(organizationId: string) {
     return this.prisma.sessionRun.findMany({
-      where: { organizationId: this.currentOrgId },
-      include: {
-        level: true,
-        academicYear: true,
-        subjects: true,
-      },
+      where: { organizationId },
+      include: { level: true, academicYear: true, subjects: true },
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, organizationId: string) {
     const run = await this.prisma.sessionRun.findUnique({
-      where: { id, organizationId: this.currentOrgId },
+      where: { id, organizationId },
       include: { level: true, academicYear: true, subjects: true },
     });
     if (!run) throw new NotFoundException(`SessionRun with ID ${id} not found`);
     return run;
   }
 
-  async update(id: string, dto: UpdateSessionRunDto) {
-    await this.findOne(id);
+  async update(id: string, dto: UpdateSessionRunDto, organizationId: string) {
+    const run = await this.prisma.sessionRun.findUnique({
+      where: { id, organizationId },
+    });
+    if (!run) throw new NotFoundException(`SessionRun with ID ${id} not found`);
     return this.prisma.sessionRun.update({
-      where: { id, organizationId: this.currentOrgId },
+      where: { id, organizationId },
       data: dto,
       include: { level: true, academicYear: true, subjects: true },
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, organizationId: string) {
+    const run = await this.prisma.sessionRun.findUnique({
+      where: { id, organizationId },
+    });
+    if (!run) throw new NotFoundException(`SessionRun with ID ${id} not found`);
     return this.prisma.sessionRun.delete({
-      where: { id, organizationId: this.currentOrgId },
+      where: { id, organizationId },
     });
   }
 }

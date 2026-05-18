@@ -4,7 +4,9 @@ import {
   Param,
   ParseUUIDPipe,
   UseGuards,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
@@ -23,14 +25,19 @@ export class StudentControllerV2 {
   @Get(':id')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
   ): Promise<StudentFullReportDto> {
-    return await this.studentService.fullreportByStudentId(id);
+    const orgId =
+      (req.headers['x-org-id'] as string) || (req as any).currentOrgId;
+    return await this.studentService.fullreportByStudentId(id, orgId);
   }
 
   @ApiOperation({ summary: 'Получить студента по userID' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @Get('user/:id')
-  async findOneByUserId(@Param('id') userId: string) {
-    return await this.studentService.findOneByUserId(userId);
+  async findOneByUserId(@Param('id') userId: string, @Req() req: Request) {
+    const orgId =
+      (req.headers['x-org-id'] as string) || (req as any).currentOrgId;
+    return await this.studentService.findOneByUserId(userId, orgId);
   }
 }
